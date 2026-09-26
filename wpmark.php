@@ -3,7 +3,7 @@
  * Plugin Name:       WPMark
  * Plugin URI:        https://atulsingh.co.in/wpmark/
  * Description:       AI for your marketing team. Connect Claude, ChatGPT or Gemini to your site and ask about your content, SEO and leads in plain language. Read-only by default. Never publishes or deletes anything.
- * Version:           0.3.0
+ * Version:           0.3.1
  * Requires at least: 6.9
  * Requires PHP:      8.1
  * Author:            Atul Singh
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'WPMARK_VERSION', '0.3.0' );
+define( 'WPMARK_VERSION', '0.3.1' );
 define( 'WPMARK_FILE', __FILE__ );
 define( 'WPMARK_DIR', plugin_dir_path( __FILE__ ) );
 
