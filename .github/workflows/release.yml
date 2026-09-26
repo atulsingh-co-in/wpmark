@@ -1,13 +1,17 @@
-# Builds the installable plugin zip and attaches it to a draft release.
+# Prepares a release: builds wpmark.zip and puts it in a draft release,
+# with the notes taken from CHANGELOG.md.
 #
-# Releases are immutable once published (Settings → General → Releases), so
-# the zip has to be attached while the release is still a draft:
+# To release (after the version bump is merged into main):
+#   1. Actions → Release zip → Run workflow → Run workflow. No typing needed:
+#      the version comes from wpmark.php.
+#   2. Releases → open the new draft → check it → Publish release.
 #
-#   1. Releases → Draft a new release. Tag: vX.Y.Z ("Create new tag on
-#      publish", target main), title and notes. Click "Save draft".
-#   2. Actions → Release zip → Run workflow → type the same tag → Run.
-#   3. When it finishes (about 2 minutes), open the draft: wpmark.zip is
-#      attached. Click "Publish release".
+# Why a draft: releases are immutable once published (Settings → General →
+# Releases), so the zip must be attached before publishing, and a published
+# version can never be changed or reused. This workflow refuses to run for a
+# version that was already released, and says what to do instead.
+#
+# Running it again before publishing is safe: it updates the same draft.
 #
 # One file with a fixed name, so people can't pick the wrong download, and
 # this address always gives the newest version:
@@ -17,36 +21,60 @@ name: Release zip
 
 on:
   workflow_dispatch:
-    inputs:
-      tag:
-        description: Tag of the draft release, for example v0.3.1
-        required: true
 
 permissions:
   contents: write
 
 jobs:
   zip:
-    name: Build and attach wpmark.zip
+    name: Build wpmark.zip into a draft release
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
-      TAG: ${{ inputs.tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Check the draft release and the version number
+      - name: Read the version and check it is new
+        id: version
         run: |
-          if [ "$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null)" != "true" ]; then
-            echo "::error::No draft release with the tag $TAG. Save the release as a draft first (step 1)."
-            exit 1
-          fi
           version="$(sed -n "s/^define( 'WPMARK_VERSION', '\(.*\)' );$/\1/p" wpmark.php)"
-          if [ "v$version" != "$TAG" ]; then
-            echo "::error::wpmark.php is version $version but the release tag is $TAG. They must match."
+          tag="v$version"
+          if [ -z "$version" ]; then
+            echo "::error::Could not read the version from wpmark.php."
             exit 1
           fi
+          if [ "$(gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null)" = "false" ]; then
+            echo "::error::Version $version is already published. Published releases can't change: raise the version in wpmark.php and CHANGELOG.md, merge, then run this again."
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
+            echo "::error::The tag $tag already exists (from an earlier or deleted release) and can't be reused. Raise the version in wpmark.php and CHANGELOG.md, merge, then run this again."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Write the release notes from CHANGELOG.md
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          awk -v v="## $VERSION" 'index($0, v) == 1 && (length($0) == length(v) || substr($0, length(v) + 1, 1) == " ") {on=1; next} /^## / && on {exit} on' CHANGELOG.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "::error::CHANGELOG.md has no section for $VERSION. Add one, merge, then run this again."
+            exit 1
+          fi
+          cat >> notes.md <<'EOF'
+
+          ### How to install or update
+          1. Download **`wpmark.zip`** below (not "Source code").
+          2. In WordPress: **Plugins → Add New Plugin → Upload Plugin**, choose the file, click **Install Now** (when updating: **Replace current with uploaded**), then **Activate**.
+          3. Open **WPMark → Connect** and follow the steps for Claude, ChatGPT or Gemini.
+
+          [Setup guide](https://github.com/atulsingh-co-in/wpmark/blob/main/docs/getting-started.md) · [Troubleshooting](https://github.com/atulsingh-co-in/wpmark/blob/main/docs/troubleshooting.md) · [Beta terms](https://github.com/atulsingh-co-in/wpmark/blob/main/docs/beta-terms.md)
+
+          Needs WordPress 6.9+, PHP 8.1+ and HTTPS. Feedback: join@atulsingh.co.in
+          EOF
 
       - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
@@ -58,10 +86,20 @@ jobs:
         id: build
         run: echo "zip=$(bin/build-zip.sh)" >> "$GITHUB_OUTPUT"
 
-      - name: Attach it to the draft release
+      - name: Put it in a draft release
         env:
           ZIP: ${{ steps.build.outputs.zip }}
+          TAG: ${{ steps.version.outputs.tag }}
+          TITLE: WPMark ${{ steps.version.outputs.version }} (public beta)
         run: |
           cp "$ZIP" dist/wpmark.zip
-          gh release upload "$TAG" dist/wpmark.zip --clobber
-          echo "Attached. Open the draft release and click Publish release." >> "$GITHUB_STEP_SUMMARY"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release edit "$TAG" --draft=true --title "$TITLE" --notes-file notes.md --target "$GITHUB_SHA"
+            gh release upload "$TAG" dist/wpmark.zip --clobber
+          else
+            gh release create "$TAG" dist/wpmark.zip --draft --target "$GITHUB_SHA" --title "$TITLE" --notes-file notes.md
+          fi
+          {
+            echo "### Draft ready: $TITLE"
+            echo "Open **Releases**, check the draft, and click **Publish release**."
+          } >> "$GITHUB_STEP_SUMMARY"

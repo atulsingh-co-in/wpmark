@@ -3,7 +3,12 @@
 All notable changes to WPMark. Versions follow [semantic versioning](https://semver.org):
 0.x versions are beta, and any of them may change behaviour.
 
-## 0.3.2 (public beta)
+## 0.3.3 (public beta)
+
+**Fixes connecting Claude and ChatGPT on some hosting.** On some hosts
+(LiteSpeed servers, such as Hostinger), an app could sign in but then show
+"Your account was authorized, but WPMark returned an error when connecting",
+and Connected apps showed "Last used: Not yet".
 
 - **Sign-in works on more hosts.** WPMark now also finds the app's sign-in
   pass where LiteSpeed servers (such as Hostinger) put it. Before, an app
@@ -14,6 +19,15 @@ All notable changes to WPMark. Versions follow [semantic versioning](https://sem
   allowed. Only the outcome, time and app name are kept: never tokens.
 - **Connected apps:** "Not yet" now links to the health check.
 - Each release has one download, `wpmark.zip`.
+
+If an app showed the error before: after updating, disconnect it under
+WPMark → Connect → Connected apps, remove WPMark in the AI app, and connect
+again.
+
+## 0.3.2
+
+- Not available to download: published before its zip was attached. Its
+  changes are in 0.3.3.
 
 ## 0.3.1 (public beta)
 
