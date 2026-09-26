@@ -30,8 +30,16 @@ git archive HEAD | tar -x -C "$work/wpmark"
 #    with other plugins. composer.json and composer.lock are only needed here.
 git show HEAD:composer.json > "$work/wpmark/composer.json"
 git show HEAD:composer.lock > "$work/wpmark/composer.lock"
-composer install --working-dir="$work/wpmark" --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader --quiet
+#    The Jetpack Autoloader is a Composer plugin, and Composer silently skips
+#    plugins when it runs as root without this setting, which would leave out
+#    vendor/autoload_packages.php and give a zip that cannot start.
+COMPOSER_ALLOW_SUPERUSER=1 composer install --working-dir="$work/wpmark" --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader --quiet
 rm "$work/wpmark/composer.json" "$work/wpmark/composer.lock"
+
+if [ ! -f "$work/wpmark/vendor/autoload_packages.php" ] || [ ! -d "$work/wpmark/vendor/wordpress/mcp-adapter" ]; then
+	echo "Build failed: the bundled MCP Adapter or its autoloader is missing from vendor/." >&2
+	exit 1
+fi
 
 # 3. Drop what the bundled packages ship for their own development.
 find "$work/wpmark/vendor" -mindepth 3 -maxdepth 3 \
