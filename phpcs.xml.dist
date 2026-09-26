@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<ruleset name="WPMark">
+	<description>WordPress Coding Standards for WPMark.</description>
+
+	<!-- What to scan. -->
+	<file>.</file>
+	<exclude-pattern>/vendor/*</exclude-pattern>
+	<exclude-pattern>/.wp/*</exclude-pattern>
+	<exclude-pattern>/node_modules/*</exclude-pattern>
+
+	<!-- How to scan. -->
+	<arg value="sp"/>
+	<arg name="basepath" value="."/>
+	<arg name="colors"/>
+	<arg name="extensions" value="php"/>
+	<arg name="parallel" value="8"/>
+	<arg name="cache" value=".phpcs-cache"/>
+
+	<!-- The full WordPress standard: core, docs and extra rules. -->
+	<rule ref="WordPress"/>
+
+	<!-- Fail on code that would break on the lowest PHP version we support. -->
+	<rule ref="PHPCompatibilityWP"/>
+	<config name="testVersion" value="8.1-"/>
+
+	<!-- Warn when using WordPress functions newer than our minimum version. -->
+	<config name="minimum_wp_version" value="6.9"/>
+
+	<!-- Every translatable string must use our text domain. -->
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="wpmark"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!-- Everything global must be prefixed: WPMark\ namespace, wpmark_ functions and hooks, WPMARK_ constants. -->
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="WPMark"/>
+				<element value="wpmark"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!--
+		Messages from tools go back to the AI client as JSON, never into an HTML
+		page, so HTML-escaping them would only corrupt them ("&quot;" instead of ").
+	-->
+	<rule ref="WordPress.Security.EscapeOutput.ExceptionNotEscaped">
+		<exclude-pattern>/includes/abilities/*</exclude-pattern>
+		<exclude-pattern>/includes/content/*</exclude-pattern>
+		<exclude-pattern>/includes/forms/class-lead-reader.php</exclude-pattern>
+	</rule>
+
+	<!-- Tests are not shipped, and PHPUnit's own naming (setUp, test_foo in camelCase classes) differs from WordPress style. -->
+	<rule ref="WordPress.Files.FileName">
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
+</ruleset>

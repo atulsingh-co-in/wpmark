@@ -1,0 +1,13 @@
+# Keep the CI actions and the bundled MCP Adapter up to date. Each update
+# arrives as a pull request and must pass CI before it is merged.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+  - package-ecosystem: composer
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5

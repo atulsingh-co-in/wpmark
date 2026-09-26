@@ -1,0 +1,35 @@
+name: Idea or request
+description: Something your marketing team wishes it could ask or do.
+labels: [idea]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: What do you want to ask your AI about your site?
+      description: Write it as you'd ask it, for example "Which blog posts brought leads last quarter?"
+    validations:
+      required: true
+  - type: dropdown
+    id: job
+    attributes:
+      label: Which job is this for?
+      options:
+        - Understand the site
+        - Review incoming leads
+        - Find content gaps
+        - Audit SEO
+        - Draft content
+        - Refresh old content
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why does it matter to your team?
+      description: What do you do today instead, and how long does it take?
+  - type: input
+    id: stack
+    attributes:
+      label: Tools involved
+      description: Form plugin, SEO plugin, CRM or other tools this would need, if any.

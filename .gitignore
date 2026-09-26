@@ -1,0 +1,26 @@
+# Composer dependencies (dev tooling only; the plugin ships without vendor/).
+/vendor/
+
+# WordPress core downloaded for the test suite by bin/install-wp.sh.
+/.wp/
+
+# Local test settings (database credentials for your own machine).
+/tests/wp-tests-config.local.php
+
+# Tool caches.
+.phpunit.result.cache
+.phpcs-cache
+
+# Secrets and environment files. This repo goes public; never commit these.
+.env
+.env.*
+
+# Editor and OS files.
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
+
+# Built plugin zips.
+/dist/

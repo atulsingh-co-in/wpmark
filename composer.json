@@ -1,0 +1,46 @@
+{
+  "name": "atulsingh-co-in/wpmark",
+  "description": "AI for WordPress marketing teams: a small, read-only set of MCP tools built on the WordPress Abilities API. Bundles the official MCP Adapter.",
+  "type": "wordpress-plugin",
+  "license": "GPL-3.0-or-later",
+  "authors": [
+    {
+      "name": "Atul Singh",
+      "homepage": "https://atulsingh.co.in"
+    }
+  ],
+  "require": {
+    "php": ">=8.1",
+    "automattic/jetpack-autoloader": "^5.0",
+    "wordpress/mcp-adapter": "^0.6.1"
+  },
+  "require-dev": {
+    "phpcompatibility/phpcompatibility-wp": "^2.1",
+    "phpunit/phpunit": "^9.6",
+    "wp-coding-standards/wpcs": "^3.4",
+    "wp-phpunit/wp-phpunit": "^6.9 || ^7.0",
+    "yoast/phpunit-polyfills": "^4.0"
+  },
+  "config": {
+    "platform": {
+      "php": "8.1.0"
+    },
+    "allow-plugins": {
+      "automattic/jetpack-autoloader": true,
+      "dealerdirect/phpcodesniffer-composer-installer": true
+    },
+    "sort-packages": true
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "scripts": {
+    "lint": "phpcs",
+    "lint:fix": "phpcbf",
+    "test": "phpunit"
+  },
+  "scripts-descriptions": {
+    "lint": "Check the code against WordPress Coding Standards.",
+    "lint:fix": "Automatically fix what the coding standards checker can fix.",
+    "test": "Run the PHPUnit test suite (needs a test database; see tests/README.md)."
+  }
+}

@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security problem
+    url: https://github.com/atulsingh-co-in/wpmark/security/advisories/new
+    about: Please report security issues privately, never in a public issue.
+  - name: Join the beta programme
+    url: https://atulsingh.co.in/wpmark/
+    about: Download WPMark with the setup guide and get updates.
+  - name: Custom work or setup for your team
+    url: https://github.com/atulsingh-co-in/wpmark/blob/main/SUPPORT.md
+    about: Other form plugins, CRMs, custom tools, or done-for-you setup.

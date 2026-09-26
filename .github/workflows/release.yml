@@ -1,0 +1,44 @@
+# Attaches the installable plugin zip to every GitHub Release.
+#
+# To release: on GitHub, go to Releases → Draft a new release, create a tag
+# such as v0.3.0, and publish. This workflow then builds wpmark-<version>.zip
+# (with the bundled MCP Adapter) and adds it to the release, ready to download
+# and upload under Plugins → Add New → Upload Plugin.
+#
+# It also attaches the same file as wpmark.zip, so this address always gives
+# the newest version and never needs changing on a website or in an email:
+# https://github.com/atulsingh-co-in/wpmark/releases/latest/download/wpmark.zip
+
+name: Release zip
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  zip:
+    name: Build and attach wpmark.zip
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.1'
+          coverage: none
+          tools: composer
+
+      - name: Build the zip
+        id: build
+        run: echo "zip=$(bin/build-zip.sh)" >> "$GITHUB_OUTPUT"
+
+      - name: Attach it to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp "${{ steps.build.outputs.zip }}" dist/wpmark.zip
+          gh release upload "${{ github.event.release.tag_name }}" "${{ steps.build.outputs.zip }}" dist/wpmark.zip --clobber
