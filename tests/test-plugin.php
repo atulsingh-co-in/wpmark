@@ -20,7 +20,7 @@ class Test_Plugin extends WP_UnitTestCase {
 	 * Constants are defined from the plugin header.
 	 */
 	public function test_constants(): void {
-		$this->assertSame( '0.3.0', WPMARK_VERSION );
+		$this->assertSame( '0.3.1', WPMARK_VERSION );
 		$this->assertFileExists( WPMARK_FILE );
 		$this->assertStringEndsWith( '/', WPMARK_DIR );
 	}

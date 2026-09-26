@@ -3,6 +3,11 @@
 All notable changes to WPMark. Versions follow [semantic versioning](https://semver.org):
 0.x versions are beta, and any of them may change behaviour.
 
+## 0.3.1 (public beta)
+
+- First public download. The same plugin as 0.3.0, released with the
+  installable zip attached. (0.3.0 was published without it.)
+
 ## 0.3.0 (public beta)
 
 - **Public beta.** Beta badge, a footer with the setup guide, privacy guide,

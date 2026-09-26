@@ -1,19 +1,26 @@
-# Attaches the installable plugin zip to every GitHub Release.
+# Builds the installable plugin zip and attaches it to a draft release.
 #
-# To release: on GitHub, go to Releases → Draft a new release, create a tag
-# such as v0.3.0, and publish. This workflow then builds wpmark-<version>.zip
-# (with the bundled MCP Adapter) and adds it to the release, ready to download
-# and upload under Plugins → Add New → Upload Plugin.
+# Releases are immutable once published (Settings → General → Releases), so
+# the zip has to be attached while the release is still a draft:
 #
-# It also attaches the same file as wpmark.zip, so this address always gives
-# the newest version and never needs changing on a website or in an email:
+#   1. Releases → Draft a new release. Tag: vX.Y.Z ("Create new tag on
+#      publish", target main), title and notes. Click "Save draft".
+#   2. Actions → Release zip → Run workflow → type the same tag → Run.
+#   3. When it finishes (about 2 minutes), open the draft: wpmark-X.Y.Z.zip
+#      and wpmark.zip are attached. Click "Publish release".
+#
+# wpmark.zip is the same file under a fixed name, so this address always
+# gives the newest version and never needs changing on a website or email:
 # https://github.com/atulsingh-co-in/wpmark/releases/latest/download/wpmark.zip
 
 name: Release zip
 
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag of the draft release, for example v0.3.1
+        required: true
 
 permissions:
   contents: write
@@ -23,8 +30,23 @@ jobs:
     name: Build and attach wpmark.zip
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check the draft release and the version number
+        run: |
+          if [ "$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null)" != "true" ]; then
+            echo "::error::No draft release with the tag $TAG. Save the release as a draft first (step 1)."
+            exit 1
+          fi
+          version="$(sed -n "s/^define( 'WPMARK_VERSION', '\(.*\)' );$/\1/p" wpmark.php)"
+          if [ "v$version" != "$TAG" ]; then
+            echo "::error::wpmark.php is version $version but the release tag is $TAG. They must match."
+            exit 1
+          fi
 
       - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
@@ -36,9 +58,10 @@ jobs:
         id: build
         run: echo "zip=$(bin/build-zip.sh)" >> "$GITHUB_OUTPUT"
 
-      - name: Attach it to the release
+      - name: Attach it to the draft release
         env:
-          GH_TOKEN: ${{ github.token }}
+          ZIP: ${{ steps.build.outputs.zip }}
         run: |
-          cp "${{ steps.build.outputs.zip }}" dist/wpmark.zip
-          gh release upload "${{ github.event.release.tag_name }}" "${{ steps.build.outputs.zip }}" dist/wpmark.zip --clobber
+          cp "$ZIP" dist/wpmark.zip
+          gh release upload "$TAG" "$ZIP" dist/wpmark.zip --clobber
+          echo "Attached. Open the draft release and click Publish release." >> "$GITHUB_STEP_SUMMARY"
