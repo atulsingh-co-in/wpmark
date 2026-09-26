@@ -158,6 +158,38 @@ namespace WPMark\Tests {
 		}
 
 		/**
+		 * An old token followed by a successful reconnect is reported as working.
+		 */
+		public function test_success_after_old_token_clears_the_warning(): void {
+			$token = $this->connect( 'Claude', 'editor', 60 );
+
+			$_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $token;
+			Bearer_Auth::authenticate( false );
+			$_SERVER['HTTP_AUTHORIZATION'] = 'Bearer wpmark_at_expired';
+			Bearer_Auth::authenticate( false );
+			$this->assertSame( Connection_Doctor::WARNING, $this->check()['status'] );
+
+			$_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $token;
+			Bearer_Auth::authenticate( false );
+
+			$this->assertSame( Connection_Doctor::GOOD, $this->check()['status'] );
+		}
+
+		/**
+		 * The health check's own test request is not mistaken for an app's.
+		 */
+		public function test_self_test_request_not_logged(): void {
+			$this->connect( 'Claude', 'editor', 60 );
+			$_SERVER['HTTP_X_WPMARK_SELF_TEST'] = '1';
+
+			Bearer_Auth::authenticate( false );
+			unset( $_SERVER['HTTP_X_WPMARK_SELF_TEST'] );
+
+			$this->assertNull( Connection_Log::latest() );
+			$this->assertSame( Connection_Doctor::WARNING, $this->check()['status'] );
+		}
+
+		/**
 		 * Requests to other addresses are not logged.
 		 */
 		public function test_other_addresses_not_logged(): void {
