@@ -16,6 +16,7 @@ global $wpdb;
 
 delete_option( 'wpmark_settings' );
 delete_option( 'wpmark_oauth_schema' );
+delete_option( 'wpmark_connection_log' );
 wp_clear_scheduled_hook( 'wpmark_oauth_cleanup' );
 
 // OAuth sign-ins and registered apps. The plugin is not loaded here, so the table names are spelled out.

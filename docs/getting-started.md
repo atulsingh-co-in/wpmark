@@ -39,7 +39,7 @@ content; the lead and SEO tools simply say what is missing.
 
 ## 1. Download
 
-Get the latest `wpmark-<version>.zip` from
+Get the latest `wpmark.zip` from
 [atulsingh.co.in/wpmark](https://atulsingh.co.in/wpmark/) or the
 [Releases page](https://github.com/atulsingh-co-in/wpmark/releases). Don't
 unzip it.

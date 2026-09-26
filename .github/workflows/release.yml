@@ -6,11 +6,11 @@
 #   1. Releases → Draft a new release. Tag: vX.Y.Z ("Create new tag on
 #      publish", target main), title and notes. Click "Save draft".
 #   2. Actions → Release zip → Run workflow → type the same tag → Run.
-#   3. When it finishes (about 2 minutes), open the draft: wpmark-X.Y.Z.zip
-#      and wpmark.zip are attached. Click "Publish release".
+#   3. When it finishes (about 2 minutes), open the draft: wpmark.zip is
+#      attached. Click "Publish release".
 #
-# wpmark.zip is the same file under a fixed name, so this address always
-# gives the newest version and never needs changing on a website or email:
+# One file with a fixed name, so people can't pick the wrong download, and
+# this address always gives the newest version:
 # https://github.com/atulsingh-co-in/wpmark/releases/latest/download/wpmark.zip
 
 name: Release zip
@@ -63,5 +63,5 @@ jobs:
           ZIP: ${{ steps.build.outputs.zip }}
         run: |
           cp "$ZIP" dist/wpmark.zip
-          gh release upload "$TAG" "$ZIP" dist/wpmark.zip --clobber
+          gh release upload "$TAG" dist/wpmark.zip --clobber
           echo "Attached. Open the draft release and click Publish release." >> "$GITHUB_STEP_SUMMARY"

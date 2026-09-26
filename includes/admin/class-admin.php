@@ -316,7 +316,16 @@ final class Admin {
 			}
 			echo '<td>' . esc_html( '' !== $connection['client_name'] ? $connection['client_name'] : __( 'Unnamed AI app', 'wpmark' ) ) . '</td>';
 			echo '<td>' . esc_html( self::local_date( $connection['connected_at'] ) ) . '</td>';
-			echo '<td>' . esc_html( null !== $connection['last_used_at'] ? self::local_date( $connection['last_used_at'] ) : __( 'Not yet', 'wpmark' ) ) . '</td>';
+			if ( null !== $connection['last_used_at'] ) {
+				echo '<td>' . esc_html( self::local_date( $connection['last_used_at'] ) ) . '</td>';
+			} else {
+				// Signed in but never used: usually the app hit an error right after Allow.
+				echo '<td>' . esc_html__( 'Not yet', 'wpmark' );
+				if ( current_user_can( 'manage_options' ) ) {
+					echo '<br><a href="' . esc_url( self::url( 'health' ) ) . '">' . esc_html__( 'App showed an error? See Health check', 'wpmark' ) . '</a>';
+				}
+				echo '</td>';
+			}
 			echo '<td><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 			echo '<input type="hidden" name="action" value="wpmark_disconnect">';
 			echo '<input type="hidden" name="user_id" value="' . esc_attr( (string) $connection['user_id'] ) . '">';
@@ -570,6 +579,7 @@ final class Admin {
 
 		if ( ! $oauth && Settings::oauth_enabled() ) {
 			Store::revoke_all();
+			\WPMark\OAuth\Connection_Log::clear();
 		}
 
 		Settings::save_oauth( $oauth );
