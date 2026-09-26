@@ -38,9 +38,16 @@ final class Connection_Log {
 
 	/**
 	 * Successful requests are recorded at most this often, to avoid a
-	 * database write on every call.
+	 * database write on every call. A success right after a failure is
+	 * always recorded, so the log never shows a problem that has cleared.
 	 */
 	private const OK_INTERVAL = 10 * MINUTE_IN_SECONDS;
+
+	/**
+	 * Header the health check sends on its own test request, so that
+	 * request is not mistaken for an app's.
+	 */
+	public const SELF_TEST_HEADER = 'X-WPMark-Self-Test';
 
 	/**
 	 * Record an outcome.
@@ -52,13 +59,15 @@ final class Connection_Log {
 		$log = self::all();
 		$now = time();
 
-		if ( self::OK === $outcome && isset( $log[ self::OK ] ) && $now - $log[ self::OK ]['time'] < self::OK_INTERVAL ) {
+		if ( self::OK === $outcome && isset( $log[ self::OK ] ) && $now - $log[ self::OK ]['time'] < self::OK_INTERVAL && self::OK === ( self::latest()['outcome'] ?? '' ) ) {
 			return;
 		}
 
 		$log[ $outcome ] = array(
 			'time' => $now,
 			'app'  => sanitize_text_field( $app ),
+			// Orders outcomes that happen within the same second.
+			'seq'  => 1 + max( array_merge( array( 0 ), array_column( $log, 'seq' ) ) ),
 		);
 
 		update_option( self::OPTION, $log, false );
@@ -67,7 +76,7 @@ final class Connection_Log {
 	/**
 	 * The latest time each outcome happened.
 	 *
-	 * @return array<string, array{time: int, app: string}>
+	 * @return array<string, array{time: int, app: string, seq: int}>
 	 */
 	public static function all(): array {
 		$log = get_option( self::OPTION, array() );
@@ -78,13 +87,13 @@ final class Connection_Log {
 	/**
 	 * The most recent outcome of any kind.
 	 *
-	 * @return array{outcome: string, time: int, app: string}|null
+	 * @return array{outcome: string, time: int, app: string, seq: int}|null
 	 */
 	public static function latest(): ?array {
 		$latest = null;
 
 		foreach ( self::all() as $outcome => $entry ) {
-			if ( null === $latest || $entry['time'] > $latest['time'] ) {
+			if ( null === $latest || (int) ( $entry['seq'] ?? 0 ) > (int) ( $latest['seq'] ?? 0 ) ) {
 				$latest = array( 'outcome' => (string) $outcome ) + $entry;
 			}
 		}

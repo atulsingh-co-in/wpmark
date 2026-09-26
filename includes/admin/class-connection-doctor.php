@@ -501,8 +501,9 @@ final class Connection_Doctor {
 			array(
 				'timeout' => 10,
 				'headers' => array(
-					'Content-Type' => 'application/json',
-					'Accept'       => 'application/json, text/event-stream',
+					'Content-Type'                   => 'application/json',
+					'Accept'                         => 'application/json, text/event-stream',
+					Connection_Log::SELF_TEST_HEADER => '1',
 				),
 				'body'    => wp_json_encode(
 					array(

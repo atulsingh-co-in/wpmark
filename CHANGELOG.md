@@ -3,6 +3,13 @@
 All notable changes to WPMark. Versions follow [semantic versioning](https://semver.org):
 0.x versions are beta, and any of them may change behaviour.
 
+## 0.3.4 (public beta)
+
+- **Health check accuracy.** "Recent connections from AI apps" no longer
+  warns about an old sign-in once the app has reconnected successfully (as
+  apps do every hour when their sign-in renews). The health check's own test
+  request is no longer mistaken for an app's.
+
 ## 0.3.3 (public beta)
 
 **Fixes connecting Claude and ChatGPT on some hosting.** On some hosts

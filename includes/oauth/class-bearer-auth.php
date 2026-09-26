@@ -48,7 +48,10 @@ final class Bearer_Auth {
 		if ( '' === $token ) {
 			// Normal before an app signs in. After it has, this means the
 			// server removed the Authorization header: the health check says so.
-			Connection_Log::record( Connection_Log::NO_TOKEN );
+			// The health check's own test request is not an app, so it is not logged.
+			if ( ! isset( $_SERVER['HTTP_X_WPMARK_SELF_TEST'] ) ) {
+				Connection_Log::record( Connection_Log::NO_TOKEN );
+			}
 			return $user_id;
 		}
 
