@@ -13,6 +13,10 @@ use WPMark\Abilities\Abilities;
 use WPMark\Abilities\Ability;
 use WPMark\Forms\Form_Sources;
 use WPMark\Mcp_Server;
+use WPMark\OAuth\Bearer_Auth;
+use WPMark\OAuth\Connection_Log;
+use WPMark\OAuth\OAuth;
+use WPMark\OAuth\Store;
 use WPMark\Privacy\Lead_Access;
 use WPMark\Seo\Seo_Sources;
 use WPMark\Settings;
@@ -52,6 +56,7 @@ final class Connection_Doctor {
 			self::https(),
 			self::application_passwords(),
 			self::oauth(),
+			self::recent_connections(),
 			self::permalinks(),
 			self::your_access(),
 			self::data_sources(),
@@ -137,13 +142,8 @@ final class Connection_Doctor {
 	public static function route_callback( WP_REST_Request $request ): array {
 		unset( $request );
 
-		// Some servers only pass the header on under REDIRECT_HTTP_AUTHORIZATION.
-		$header = isset( $_SERVER['HTTP_AUTHORIZATION'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_AUTHORIZATION'] ) ) : '';
-
-		if ( '' === $header && isset( $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ) ) {
-			$header = sanitize_text_field( wp_unslash( $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ) );
-		}
-
+		// Read exactly as sign-in reads it, so this check tells the truth about sign-in.
+		$header   = Bearer_Auth::authorization_header();
 		$expected = get_transient( 'wpmark_connection_check' );
 
 		return array( 'received' => is_string( $expected ) && '' !== $expected && hash_equals( 'WPMark-Check ' . $expected, $header ) );
@@ -244,6 +244,94 @@ final class Connection_Doctor {
 		}
 
 		return self::result( 'oauth', $label, self::GOOD, __( 'Ready. Paste the connection address into Claude or ChatGPT and sign in.', 'wpmark' ) );
+	}
+
+	/**
+	 * What happened when AI apps last called WPMark after signing in.
+	 *
+	 * The most common failure after a successful sign-in is a web server or
+	 * proxy that removes the Authorization header: the app signed in, but
+	 * its requests arrive without the access token and are refused. From
+	 * outside this only looks like "Last used: Not yet" and a vague error in
+	 * the app, so it is spelled out here.
+	 *
+	 * @return array
+	 */
+	private static function recent_connections(): array {
+		$label = __( 'Recent connections from AI apps', 'wpmark' );
+
+		if ( ! OAuth::is_enabled() ) {
+			return self::result( 'recent_connections', $label, self::INFO, __( 'Not checked: sign-in is off.', 'wpmark' ) );
+		}
+
+		$log       = Connection_Log::all();
+		$latest    = Connection_Log::latest();
+		$signed_in = 0;
+
+		foreach ( Store::connections() as $connection ) {
+			$signed_in = max( $signed_in, (int) strtotime( $connection['connected_at'] . ' UTC' ) );
+		}
+
+		$ok       = (int) ( $log[ Connection_Log::OK ]['time'] ?? 0 );
+		$no_token = (int) ( $log[ Connection_Log::NO_TOKEN ]['time'] ?? 0 );
+
+		if ( $signed_in && $ok < $signed_in && $no_token > $signed_in ) {
+			return self::result(
+				'recent_connections',
+				$label,
+				self::PROBLEM,
+				__( 'An AI app signed in, but its requests reach WordPress without its sign-in pass, so they are refused. Your web server, or a CDN or firewall in front of it, removes the Authorization header.', 'wpmark' ),
+				__( 'On Apache or LiteSpeed hosting (including Hostinger), add this line at the top of the site\'s .htaccess file: SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1 . If a CDN or firewall is in front of the site (Cloudflare, Hostinger CDN, Sucuri), make sure it passes the Authorization header on. Then disconnect WPMark in your AI app and connect again.', 'wpmark' )
+			);
+		}
+
+		if ( null !== $latest && in_array( $latest['outcome'], array( Connection_Log::UNKNOWN, Connection_Log::EXPIRED ), true ) ) {
+			return self::result(
+				'recent_connections',
+				$label,
+				self::WARNING,
+				/* translators: %s: how long ago, for example "5 mins". */
+				sprintf( __( '%s ago an AI app used a sign-in that WPMark no longer recognises (expired, disconnected, or from before a reinstall).', 'wpmark' ), human_time_diff( $latest['time'] ) ),
+				__( 'In your AI app, disconnect WPMark and connect again.', 'wpmark' )
+			);
+		}
+
+		if ( null !== $latest && Connection_Log::NOT_ALLOWED === $latest['outcome'] ) {
+			return self::result(
+				'recent_connections',
+				$label,
+				self::WARNING,
+				__( 'An AI app signed in as someone whose role is not allowed to use WPMark, so it was refused.', 'wpmark' ),
+				__( 'Allow the role under WPMark → Access & privacy, or connect as someone whose role is allowed.', 'wpmark' )
+			);
+		}
+
+		if ( $ok ) {
+			$app = (string) ( $log[ Connection_Log::OK ]['app'] ?? '' );
+
+			return self::result(
+				'recent_connections',
+				$label,
+				self::GOOD,
+				'' !== $app
+					/* translators: 1: how long ago, for example "5 mins", 2: app name. */
+					? sprintf( __( 'Working. Last successful request %1$s ago, from %2$s.', 'wpmark' ), human_time_diff( $ok ), $app )
+					/* translators: %s: how long ago, for example "5 mins". */
+					: sprintf( __( 'Working. Last successful request %s ago.', 'wpmark' ), human_time_diff( $ok ) )
+			);
+		}
+
+		if ( $signed_in ) {
+			return self::result(
+				'recent_connections',
+				$label,
+				self::WARNING,
+				__( 'An AI app signed in, but none of its requests have reached WordPress since.', 'wpmark' ),
+				__( 'If your AI app showed an error after you clicked Allow, something in front of WordPress (a firewall, CDN or security plugin) may be blocking /wp-json/wpmark/mcp. Allow that address, then connect again.', 'wpmark' )
+			);
+		}
+
+		return self::result( 'recent_connections', $label, self::INFO, __( 'No AI app has connected through sign-in yet.', 'wpmark' ) );
 	}
 
 	/**

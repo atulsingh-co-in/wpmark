@@ -46,17 +46,22 @@ final class Bearer_Auth {
 		$token = self::bearer_token();
 
 		if ( '' === $token ) {
+			// Normal before an app signs in. After it has, this means the
+			// server removed the Authorization header: the health check says so.
+			Connection_Log::record( Connection_Log::NO_TOKEN );
 			return $user_id;
 		}
 
-		$user = self::user_for_token( $token );
+		$check = self::check_token( $token );
 
-		if ( null === $user ) {
+		Connection_Log::record( $check['outcome'], $check['app'] );
+
+		if ( null === $check['user'] ) {
 			self::$invalid = true;
 			return $user_id;
 		}
 
-		return $user;
+		return $check['user'];
 	}
 
 	/**
@@ -66,22 +71,55 @@ final class Bearer_Auth {
 	 * @return int|null User ID.
 	 */
 	public static function user_for_token( string $token ): ?int {
+		return self::check_token( $token )['user'];
+	}
+
+	/**
+	 * Check an access token, and say why it was refused if it was.
+	 *
+	 * @param string $token Access token.
+	 * @return array{user: int|null, outcome: string, app: string}
+	 */
+	private static function check_token( string $token ): array {
 		$row = Store::find( $token, 'access' );
 
-		if ( ! $row || ! Store::is_live( $row ) ) {
-			return null;
+		if ( ! $row ) {
+			return self::outcome( null, Connection_Log::UNKNOWN );
+		}
+
+		$client = Store::get_client( (string) $row['client_id'] );
+		$app    = $client ? (string) $client['client_name'] : '';
+
+		if ( ! Store::is_live( $row ) ) {
+			return self::outcome( null, Connection_Log::EXPIRED, $app );
 		}
 
 		$user = get_userdata( (int) $row['user_id'] );
 
 		// Checked on every request: switching a role off takes effect at once.
 		if ( ! $user || ! Settings::user_can_connect( $user ) ) {
-			return null;
+			return self::outcome( null, Connection_Log::NOT_ALLOWED, $app );
 		}
 
 		Store::touch( (int) $row['id'] );
 
-		return $user->ID;
+		return self::outcome( $user->ID, Connection_Log::OK, $app );
+	}
+
+	/**
+	 * A token check result.
+	 *
+	 * @param int|null $user    User ID, or null when refused.
+	 * @param string   $outcome Connection_Log outcome.
+	 * @param string   $app     App name.
+	 * @return array{user: int|null, outcome: string, app: string}
+	 */
+	private static function outcome( ?int $user, string $outcome, string $app = '' ): array {
+		return array(
+			'user'    => $user,
+			'outcome' => $outcome,
+			'app'     => $app,
+		);
 	}
 
 	/**
@@ -106,16 +144,35 @@ final class Bearer_Auth {
 	 * @return string
 	 */
 	private static function bearer_token(): string {
-		$header = '';
+		return preg_match( '/^Bearer\s+([A-Za-z0-9\-._~+\/]+=*)$/i', self::authorization_header(), $m ) ? $m[1] : '';
+	}
 
+	/**
+	 * The request's Authorization header, wherever this server puts it.
+	 *
+	 * Most servers set HTTP_AUTHORIZATION. Some only set it after a rewrite
+	 * (REDIRECT_HTTP_AUTHORIZATION). Some, including LiteSpeed hosting such
+	 * as Hostinger, leave it out of $_SERVER entirely but still return it
+	 * from getallheaders().
+	 *
+	 * @return string The header, or "".
+	 */
+	public static function authorization_header(): string {
 		foreach ( array( 'HTTP_AUTHORIZATION', 'REDIRECT_HTTP_AUTHORIZATION' ) as $key ) {
 			if ( ! empty( $_SERVER[ $key ] ) ) {
-				$header = sanitize_text_field( wp_unslash( $_SERVER[ $key ] ) );
-				break;
+				return sanitize_text_field( wp_unslash( $_SERVER[ $key ] ) );
 			}
 		}
 
-		return preg_match( '/^Bearer\s+([A-Za-z0-9\-._~+\/]+=*)$/i', $header, $m ) ? $m[1] : '';
+		if ( function_exists( 'getallheaders' ) ) {
+			foreach ( (array) getallheaders() as $name => $value ) {
+				if ( 'authorization' === strtolower( (string) $name ) && is_string( $value ) ) {
+					return sanitize_text_field( $value );
+				}
+			}
+		}
+
+		return '';
 	}
 
 	/**

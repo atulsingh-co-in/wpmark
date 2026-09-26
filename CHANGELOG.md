@@ -3,6 +3,18 @@
 All notable changes to WPMark. Versions follow [semantic versioning](https://semver.org):
 0.x versions are beta, and any of them may change behaviour.
 
+## 0.3.2 (public beta)
+
+- **Sign-in works on more hosts.** WPMark now also finds the app's sign-in
+  pass where LiteSpeed servers (such as Hostinger) put it. Before, an app
+  could sign in and then be refused on every request.
+- **New health check: "Recent connections from AI apps".** When an app signed
+  in but can't connect, it says why and how to fix it: the server removes
+  the Authorization header, the sign-in is old or unknown, or the role isn't
+  allowed. Only the outcome, time and app name are kept: never tokens.
+- **Connected apps:** "Not yet" now links to the health check.
+- Each release has one download, `wpmark.zip`.
+
 ## 0.3.1 (public beta)
 
 - First public download. The same plugin as 0.3.0, released with the
