@@ -67,7 +67,7 @@ final class Discovery {
 		return array(
 			'resource'                 => OAuth::resource(),
 			'authorization_servers'    => array( OAuth::issuer() ),
-			'scopes_supported'         => array( OAuth::SCOPE ),
+			'scopes_supported'         => OAuth::scopes(),
 			'bearer_methods_supported' => array( 'header' ),
 			'resource_name'            => sprintf(
 				/* translators: %s: site name. */
@@ -94,7 +94,7 @@ final class Discovery {
 			'code_challenge_methods_supported'           => array( 'S256' ),
 			'token_endpoint_auth_methods_supported'      => array( 'none', 'client_secret_post', 'client_secret_basic' ),
 			'revocation_endpoint_auth_methods_supported' => array( 'none', 'client_secret_post', 'client_secret_basic' ),
-			'scopes_supported'                           => array( OAuth::SCOPE ),
+			'scopes_supported'                           => OAuth::scopes(),
 			'authorization_response_iss_parameter_supported' => true,
 			'service_documentation'                      => 'https://github.com/atulsingh-co-in/wpmark',
 		);

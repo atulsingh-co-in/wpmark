@@ -40,6 +40,7 @@ final class Admin {
 		add_action( 'admin_menu', array( self::class, 'add_menu' ) );
 		add_action( 'admin_post_wpmark_save_tools', array( self::class, 'save_tools' ) );
 		add_action( 'admin_post_wpmark_save_access', array( self::class, 'save_access' ) );
+		add_action( 'admin_post_wpmark_save_agents', array( self::class, 'save_agents' ) );
 		add_action( 'admin_post_wpmark_disconnect', array( self::class, 'disconnect' ) );
 		add_action( 'admin_notices', array( self::class, 'welcome_notice' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( WPMARK_FILE ), array( self::class, 'action_links' ) );
@@ -87,6 +88,24 @@ final class Admin {
 			$tabs['health'] = __( 'Health check', 'wpmark' );
 			$tabs['tools']  = __( 'Tools', 'wpmark' );
 			$tabs['access'] = __( 'Access & privacy', 'wpmark' );
+			$tabs['drafts'] = __( 'Drafts by AI', 'wpmark' );
+			$tabs['agents'] = __( 'Agent ready', 'wpmark' );
+
+			/**
+			 * Filters the administrators' WPMark tabs, so an add-on can add its
+			 * own. Show an added tab with the wpmark_admin_tab_{slug} action.
+			 *
+			 * @param array<string, string> $tabs Slug => label.
+			 */
+			$added = apply_filters( 'wpmark_admin_tabs', array() );
+
+			foreach ( is_array( $added ) ? $added : array() as $slug => $label ) {
+				$slug = sanitize_key( (string) $slug );
+
+				if ( '' !== $slug && ! isset( $tabs[ $slug ] ) && is_string( $label ) ) {
+					$tabs[ $slug ] = $label;
+				}
+			}
 		}
 
 		return $tabs;
@@ -105,7 +124,11 @@ final class Admin {
 
 		echo '<div class="wrap wpmark">';
 		echo '<h1>' . esc_html__( 'WPMark', 'wpmark' ) . ' <span class="wpmark-badge">' . esc_html__( 'Beta', 'wpmark' ) . '</span></h1>';
-		echo '<p class="wpmark-lead">' . esc_html__( 'Ask Claude, ChatGPT or Gemini about your content, SEO and leads. WPMark only reads your site: it never publishes, changes or deletes anything.', 'wpmark' ) . '</p>';
+		echo '<p class="wpmark-lead">' . esc_html(
+			Settings::publishing_allowed()
+				? __( 'Ask Claude, ChatGPT or Gemini about your content, SEO and leads, and let them draft pages in your site\'s own style. They publish only where you allow it, and never delete anything: you stay in control.', 'wpmark' )
+				: __( 'Ask Claude, ChatGPT or Gemini about your content, SEO and leads, and, if you switch it on, let them draft pages in your site\'s own style. WPMark never publishes or deletes anything: you stay in control.', 'wpmark' )
+		) . '</p>';
 
 		self::render_saved_notice();
 
@@ -130,8 +153,21 @@ final class Admin {
 			case 'access':
 				self::render_access();
 				break;
-			default:
+			case 'drafts':
+				self::render_drafts();
+				break;
+			case 'agents':
+				self::render_agents();
+				break;
+			case 'connect':
 				self::render_connect();
+				break;
+			default:
+				/**
+				 * Shows a tab an add-on added with the wpmark_admin_tabs filter.
+				 * Only administrators see added tabs.
+				 */
+				do_action( 'wpmark_admin_tab_' . $tab );
 		}
 
 		self::render_footer();
@@ -305,7 +341,7 @@ final class Admin {
 		if ( $is_admin ) {
 			echo '<th>' . esc_html__( 'Person', 'wpmark' ) . '</th>';
 		}
-		echo '<th>' . esc_html__( 'App', 'wpmark' ) . '</th><th>' . esc_html__( 'Connected', 'wpmark' ) . '</th><th>' . esc_html__( 'Last used', 'wpmark' ) . '</th><th></th></tr></thead><tbody>';
+		echo '<th>' . esc_html__( 'App', 'wpmark' ) . '</th><th>' . esc_html__( 'Connected', 'wpmark' ) . '</th><th>' . esc_html__( 'Last used', 'wpmark' ) . '</th><th>' . esc_html__( 'Access', 'wpmark' ) . '</th><th></th></tr></thead><tbody>';
 
 		foreach ( $connections as $connection ) {
 			$person = get_userdata( $connection['user_id'] );
@@ -326,6 +362,7 @@ final class Admin {
 				}
 				echo '</td>';
 			}
+			echo '<td>' . esc_html( $connection['drafts'] ? __( 'Read and create drafts', 'wpmark' ) : __( 'Read', 'wpmark' ) ) . '</td>';
 			echo '<td><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 			echo '<input type="hidden" name="action" value="wpmark_disconnect">';
 			echo '<input type="hidden" name="user_id" value="' . esc_attr( (string) $connection['user_id'] ) . '">';
@@ -449,7 +486,7 @@ final class Admin {
 	 */
 	private static function render_tools(): void {
 		echo '<div class="wpmark-card"><h2>' . esc_html__( 'Tools', 'wpmark' ) . '</h2>';
-		echo '<p>' . esc_html__( 'Choose what AI apps may use. Every tool only reads; switching one off hides it from all AI apps on this site.', 'wpmark' ) . '</p>';
+		echo '<p>' . esc_html__( 'Choose what AI apps may use. Switching a tool off hides it from all AI apps on this site. The draft tools only appear when drafts are switched on under Access & privacy.', 'wpmark' ) . '</p>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		echo '<input type="hidden" name="action" value="wpmark_save_tools">';
 		wp_nonce_field( 'wpmark_save_tools' );
@@ -498,7 +535,7 @@ final class Admin {
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		echo '<input type="hidden" name="action" value="wpmark_save_access">';
 		wp_nonce_field( 'wpmark_save_access' );
-		echo '<table class="widefat striped wpmark-table"><thead><tr><th>' . esc_html__( 'Role', 'wpmark' ) . '</th><th>' . esc_html__( 'Can use WPMark', 'wpmark' ) . '</th><th>' . esc_html__( 'Leads', 'wpmark' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped wpmark-table"><thead><tr><th>' . esc_html__( 'Role', 'wpmark' ) . '</th><th>' . esc_html__( 'Can use WPMark', 'wpmark' ) . '</th><th>' . esc_html__( 'Leads', 'wpmark' ) . '</th><th>' . esc_html__( 'Can create drafts', 'wpmark' ) . '</th></tr></thead><tbody>';
 
 		foreach ( Settings::roles() as $slug => $role ) {
 			echo '<tr><td><strong>' . esc_html( $role['name'] ) . '</strong></td><td>';
@@ -519,10 +556,37 @@ final class Admin {
 			foreach ( Lead_Access::cases() as $level ) {
 				printf( '<option value="%s"%s>%s</option>', esc_attr( $level->value ), selected( $level->value, $role['leads']->value, false ), esc_html( Lead_Access::label( $level ) ) );
 			}
-			echo '</select></td></tr>';
+			echo '</select></td><td>';
+
+			if ( $role['can_write'] ) {
+				printf(
+					'<input type="checkbox" id="wpmark-drafts-%1$s" name="roles[%1$s][drafts]" value="1"%2$s><label class="screen-reader-text" for="wpmark-drafts-%1$s">%3$s</label>',
+					esc_attr( $slug ),
+					checked( $role['drafts'], true, false ),
+					/* translators: %s: role name. */
+					esc_html( sprintf( __( '%s can let AI apps create drafts', 'wpmark' ), $role['name'] ) )
+				);
+			}
+
+			echo '</td></tr>';
 		}
 
 		echo '</tbody></table>';
+
+		echo '<h3>' . esc_html__( 'Drafts created by AI apps', 'wpmark' ) . '</h3>';
+		printf(
+			'<p><label><input type="checkbox" name="drafts" value="1"%s> %s</label></p><p class="description">%s</p>',
+			checked( Settings::drafts_enabled(), true, false ),
+			esc_html__( 'Let AI apps create draft pages and posts, for the roles ticked under "Can create drafts".', 'wpmark' ),
+			esc_html__( 'Off by default. Drafts are built from your own templates, colours and fonts, and are never published: a person reviews and publishes them in WordPress. WPMark never deletes anything, never changes published content, and only updates drafts it created. Each person must also agree when they connect their app.', 'wpmark' )
+		);
+
+		printf(
+			'<p><label><input type="checkbox" name="custom_design" value="1"%s> %s</label></p><p class="description">%s</p>',
+			checked( Settings::custom_design_enabled(), true, false ),
+			esc_html__( 'Experimental: also let AI apps design pages in their own HTML and CSS.', 'wpmark' ),
+			esc_html__( 'Off by default, and still being improved: results depend on your theme and page builder, so check each page carefully on desktop and phone before publishing. When off, AI apps build drafts from your own pages and templates.', 'wpmark' )
+		);
 
 		echo '<h3>' . esc_html__( 'Sign-in for AI apps', 'wpmark' ) . '</h3>';
 		printf(
@@ -534,6 +598,101 @@ final class Admin {
 
 		submit_button( __( 'Save access', 'wpmark' ) );
 		echo '</form></div>';
+	}
+
+	/**
+	 * Drafts by AI tab: every page and post AI apps created through WPMark.
+	 */
+	private static function render_drafts(): void {
+		echo '<div class="wpmark-card"><h2>' . esc_html__( 'Drafts by AI', 'wpmark' ) . '</h2>';
+
+		if ( ! Settings::drafts_enabled() ) {
+			echo '<p>' . esc_html__( 'Creating drafts is switched off. AI apps can only read your site.', 'wpmark' ) . ' <a href="' . esc_url( self::url( 'access' ) ) . '">' . esc_html__( 'Change this under Access & privacy.', 'wpmark' ) . '</a></p>';
+		} else {
+			echo '<p>' . esc_html__( 'Pages and posts that AI apps created through WPMark, newest first. They stay drafts until a person publishes them. WPMark only changes them while they are drafts.', 'wpmark' ) . '</p>';
+		}
+
+		$drafts = \WPMark\Drafts\Drafts::list( '', 100 );
+
+		if ( ! $drafts ) {
+			echo '<p><em>' . esc_html__( 'None yet.', 'wpmark' ) . '</em></p></div>';
+			return;
+		}
+
+		echo '<table class="widefat striped wpmark-table"><thead><tr><th>' . esc_html__( 'Title', 'wpmark' ) . '</th><th>' . esc_html__( 'Status', 'wpmark' ) . '</th><th>' . esc_html__( 'Created by', 'wpmark' ) . '</th><th>' . esc_html__( 'App', 'wpmark' ) . '</th><th>' . esc_html__( 'Last changed', 'wpmark' ) . '</th></tr></thead><tbody>';
+
+		foreach ( $drafts as $draft ) {
+			$post    = get_post( $draft['id'] );
+			$creator = $post ? \WPMark\Drafts\Drafts::creator( $post ) : null;
+			$status  = get_post_status_object( $draft['status'] );
+
+			printf(
+				'<tr><td><a href="%1$s"><strong>%2$s</strong></a> · <a href="%3$s">%4$s</a></td><td>%5$s</td><td>%6$s</td><td>%7$s</td><td>%8$s</td></tr>',
+				esc_url( $draft['edit_url'] ),
+				esc_html( '' !== $draft['title'] ? $draft['title'] : __( '(no title)', 'wpmark' ) ),
+				esc_url( $draft['preview_url'] ),
+				esc_html__( 'Preview', 'wpmark' ),
+				esc_html( $status ? $status->label : $draft['status'] ),
+				esc_html( $creator ? $creator->display_name : '' ),
+				esc_html( $draft['app'] ),
+				esc_html( $post ? self::local_date( $post->post_modified_gmt ) : '' )
+			);
+		}
+
+		echo '</tbody></table></div>';
+	}
+
+	/**
+	 * Agent ready tab: can AI search and AI agents find, read and use the site?
+	 */
+	private static function render_agents(): void {
+		echo '<div class="wpmark-card"><h2>' . esc_html__( 'Is your site ready for AI?', 'wpmark' ) . '</h2>';
+		echo '<p>' . esc_html__( 'More and more people ask ChatGPT, Claude, Gemini or Perplexity instead of searching, and AI agents now visit sites for them. These checks show whether AI can find your site, read it, and use your forms. Some send test requests from your site to itself.', 'wpmark' ) . '</p>';
+		self::render_checks( \WPMark\Agents\Agent_Readiness::checks() );
+		echo '</div>';
+
+		$other = \WPMark\Agents\Llms_Txt::other_provider();
+
+		echo '<div class="wpmark-card"><h2>' . esc_html__( 'Help AI understand and use your site', 'wpmark' ) . '</h2>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		echo '<input type="hidden" name="action" value="wpmark_save_agents">';
+		wp_nonce_field( 'wpmark_save_agents' );
+
+		printf(
+			'<p><label><input type="checkbox" name="llms_txt" value="1"%s%s> %s</label></p><p class="description">%s%s</p>',
+			checked( Settings::llms_txt_enabled(), true, false ),
+			disabled( '' !== $other, true, false ),
+			esc_html__( 'Publish an llms.txt summary of your site', 'wpmark' ),
+			esc_html__( 'A plain list of your main pages and latest posts, with short descriptions, at /llms.txt. It only lists what is already public, and leaves out pages hidden from search engines.', 'wpmark' ),
+			'' !== $other
+				/* translators: %s: Who already provides llms.txt. */
+				? ' <strong>' . esc_html( sprintf( __( 'Your site already has one, provided by %s.', 'wpmark' ), $other ) ) . '</strong>'
+				: ( \WPMark\Agents\Llms_Txt::is_served() ? ' <a href="' . esc_url( home_url( '/llms.txt' ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'View it', 'wpmark' ) . '</a>' : '' )
+		);
+
+		printf(
+			'<p><label><input type="checkbox" name="webmcp" value="1"%s> %s</label></p><p class="description">%s</p>',
+			checked( Settings::webmcp_enabled(), true, false ),
+			esc_html__( 'Describe your contact forms and search box for AI agents (WebMCP, experimental)', 'wpmark' ),
+			esc_html__( 'Adds a few invisible labels to your forms and search box so AI agents in Chrome and Edge can fill them in correctly. The visitor still checks the message and presses Send. WebMCP is an early proposal from Google and Microsoft and may change; browsers that do not support it ignore the labels.', 'wpmark' )
+		);
+
+		submit_button( __( 'Save', 'wpmark' ) );
+		echo '</form></div>';
+	}
+
+	/**
+	 * Save the Agent ready tab.
+	 */
+	public static function save_agents(): void {
+		self::check_request( 'wpmark_save_agents' );
+
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Checked in check_request().
+		Settings::save_agent_features( ! empty( $_POST['llms_txt'] ), ! empty( $_POST['webmcp'] ) );
+		// phpcs:enable
+
+		\WPMark\Agents\Llms_Txt::clear();
+		self::redirect( 'agents' );
 	}
 
 	/**
@@ -569,10 +728,17 @@ final class Admin {
 			$choices[ sanitize_key( (string) $slug ) ] = array(
 				'enabled' => ! empty( $choice['enabled'] ),
 				'leads'   => sanitize_key( (string) ( $choice['leads'] ?? '' ) ),
+				'drafts'  => ! empty( $choice['drafts'] ),
 			);
 		}
 
 		Settings::save_roles( $choices );
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Checked in check_request().
+		Settings::save_drafts( ! empty( $_POST['drafts'] ) );
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Checked in check_request().
+		Settings::save_custom_design( ! empty( $_POST['custom_design'] ) );
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Checked in check_request().
 		$oauth = ! empty( $_POST['oauth'] );

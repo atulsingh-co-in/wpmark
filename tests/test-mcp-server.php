@@ -12,6 +12,7 @@ use WP_REST_Request;
 use WP_REST_Server;
 use WP_UnitTestCase;
 use WPMark\Mcp_Server;
+use WPMark\Settings;
 
 /**
  * Mcp_Server: the endpoint AI assistants connect to.
@@ -36,11 +37,18 @@ class Test_Mcp_Server extends WP_UnitTestCase {
 	public static function set_up_before_class(): void {
 		parent::set_up_before_class();
 
+		// The adapter fixes its tool list when it starts: with drafts on, the
+		// drafts tools are in it. Each tool still checks the setting when called.
+		Settings::save_drafts( true );
+
 		self::$rest_server = new WP_REST_Server();
 
 		global $wp_rest_server;
 		$wp_rest_server = self::$rest_server;
 		do_action( 'rest_api_init', $wp_rest_server );
+
+		// Back to the default for the tests themselves (this option is not rolled back).
+		Settings::save_drafts( false );
 	}
 
 	/**
@@ -90,15 +98,15 @@ class Test_Mcp_Server extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Without a form plugin, only the content tools are offered.
+	 * Without a form plugin, the content and page design tools are offered, not the lead tools.
 	 */
 	public function test_offers_tools_the_site_supports(): void {
 		$this->assertSame(
-			array( 'wpmark/site-overview', 'wpmark/search-content', 'wpmark/get-content', 'wpmark/content-inventory', 'wpmark/find-seo-gaps' ),
+			array( 'wpmark/site-overview', 'wpmark/search-content', 'wpmark/get-content', 'wpmark/content-inventory', 'wpmark/find-seo-gaps', 'wpmark/check-links', 'wpmark/agent-readiness', 'wpmark/design-guide', 'wpmark/find-templates', 'wpmark/page-structure', 'wpmark/list-media' ),
 			Mcp_Server::tool_names()
 		);
 		$this->assertSame( array( 'wpmark/site-profile' ), Mcp_Server::names( 'resource' ) );
-		$this->assertSame( array( 'wpmark/content-plan', 'wpmark/seo-check' ), Mcp_Server::names( 'prompt' ) );
+		$this->assertSame( array( 'wpmark/content-plan', 'wpmark/seo-check', 'wpmark/blog-post', 'wpmark/weekly-report' ), Mcp_Server::names( 'prompt' ), 'The landing page playbook needs drafts switched on.' );
 	}
 
 	/**
@@ -198,6 +206,69 @@ class Test_Mcp_Server extends WP_UnitTestCase {
 
 		$resources = $this->decode( rest_get_server()->dispatch( $this->mcp_request( 'resources/list', array(), $session ) ) );
 		$this->assertContains( 'wpmark://site/profile', array_column( $resources['result']['resources'], 'uri' ) );
+	}
+
+	/**
+	 * The tools are listed with honest hints, and a draft is created over MCP.
+	 */
+	public function test_create_draft_over_mcp(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'editor' ) ) );
+
+		Settings::save_drafts( true );
+
+		$request = $this->mcp_request( 'initialize', $this->initialize_params() );
+		$init    = apply_filters( 'rest_post_dispatch', rest_get_server()->dispatch( $request ), rest_get_server(), $request );
+		$session = $init->get_headers()['Mcp-Session-Id'] ?? '';
+
+		$tools = array_column( $this->call( 'tools/list', array(), $session )['result']['tools'], null, 'name' );
+
+		$this->assertArrayHasKey( 'wpmark-create-draft', $tools );
+		$this->assertFalse( $tools['wpmark-create-draft']['annotations']['readOnlyHint'] );
+		$this->assertFalse( $tools['wpmark-create-draft']['annotations']['destructiveHint'] );
+		$this->assertArrayHasKey( 'sections', $tools['wpmark-create-draft']['inputSchema']['properties'] );
+		$this->assertTrue( $tools['wpmark-list-drafts']['annotations']['readOnlyHint'] );
+
+		$call = $this->call(
+			'tools/call',
+			array(
+				'name'      => 'wpmark-create-draft',
+				'arguments' => array(
+					'title'    => 'Launch',
+					'sections' => array(
+						array(
+							'compose' => array(
+								'items' => array(
+									array(
+										'kind' => 'heading',
+										'text' => 'Hello',
+									),
+								),
+							),
+						),
+					),
+				),
+			),
+			$session
+		);
+
+		$this->assertFalse( $call['result']['isError'] ?? false, wp_json_encode( $call ) );
+		$this->assertSame( 'draft', $call['result']['structuredContent']['status'] );
+		$this->assertSame( 'draft', get_post_status( $call['result']['structuredContent']['id'] ) );
+
+		$prompts = array_column( $this->call( 'prompts/list', array(), $session )['result']['prompts'], 'name' );
+		$this->assertContains( 'wpmark-landing-page', $prompts );
+	}
+
+	/**
+	 * Send a JSON-RPC request and decode the answer.
+	 *
+	 * @param string $method  Method.
+	 * @param array  $params  Parameters.
+	 * @param string $session Session ID.
+	 * @return array
+	 */
+	private function call( string $method, array $params, string $session ): array {
+		return (array) json_decode( wp_json_encode( rest_get_server()->dispatch( $this->mcp_request( $method, $params, $session ) )->get_data() ), true );
 	}
 
 	/**

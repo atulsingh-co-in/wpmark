@@ -7,6 +7,7 @@
 
 namespace WPMark\OAuth;
 
+use WP_User;
 use WPMark\Mcp_Server;
 use WPMark\Settings;
 
@@ -47,9 +48,97 @@ final class OAuth {
 	public const NS = 'wpmark/v1/oauth';
 
 	/**
-	 * The only scope: read-only use of WPMark.
+	 * The basic scope: read-only use of WPMark.
 	 */
 	public const SCOPE = 'wpmark';
+
+	/**
+	 * The extra scope a person grants on the sign-in screen to let the app
+	 * create drafts. Only offered when the site and the person's role allow it.
+	 */
+	public const DRAFTS_SCOPE = 'wpmark:drafts';
+
+	/**
+	 * Every scope WPMark knows.
+	 *
+	 * @return string[]
+	 */
+	public static function scopes(): array {
+		return array_merge( array( self::SCOPE ), array_keys( self::optional_scopes() ) );
+	}
+
+	/**
+	 * The extra scopes a person may grant on the sign-in screen, each an
+	 * unticked checkbox shown only to people allowed to use it.
+	 *
+	 * @return array<string, array{label: string, allowed: callable(WP_User): bool}> Scope => details.
+	 */
+	public static function optional_scopes(): array {
+		$scopes = array(
+			self::DRAFTS_SCOPE => array(
+				'label'   => __( 'Also let it create draft pages and posts for me to review. Drafts are never published by the app.', 'wpmark' ),
+				'allowed' => array( Settings::class, 'user_can_draft' ),
+			),
+		);
+
+		/**
+		 * Filters the extra scopes offered on the sign-in screen, so an
+		 * add-on can ask for its own (for example, publishing).
+		 *
+		 * Each scope needs a label, shown next to its checkbox, and an
+		 * "allowed" callback: given the person, whether they may grant it.
+		 * The checkbox is shown, and the scope granted, only when it returns
+		 * true. Scopes must start with "wpmark:".
+		 *
+		 * @param array<string, array{label: string, allowed: callable}> $scopes Scope => details.
+		 */
+		$added = apply_filters( 'wpmark_oauth_scopes', $scopes );
+
+		foreach ( is_array( $added ) ? $added : array() as $scope => $details ) {
+			if ( ! isset( $scopes[ $scope ] ) && is_string( $scope ) && preg_match( '/^wpmark:[a-z][a-z_-]{1,30}$/', $scope ) && is_string( $details['label'] ?? null ) && is_callable( $details['allowed'] ?? null ) ) {
+				$scopes[ $scope ] = array(
+					'label'   => $details['label'],
+					'allowed' => $details['allowed'],
+				);
+			}
+		}
+
+		return $scopes;
+	}
+
+	/**
+	 * The scopes a person grants: the basic one, plus the extra ones they
+	 * ticked and may grant.
+	 *
+	 * @param string[] $ticked Extra scopes ticked on the sign-in screen.
+	 * @param WP_User  $user   The person.
+	 * @return string Space-separated scopes.
+	 */
+	public static function granted_scope( array $ticked, WP_User $user ): string {
+		$granted = array( self::SCOPE );
+
+		foreach ( self::optional_scopes() as $scope => $details ) {
+			if ( in_array( $scope, $ticked, true ) && call_user_func( $details['allowed'], $user ) ) {
+				$granted[] = $scope;
+			}
+		}
+
+		return implode( ' ', $granted );
+	}
+
+	/**
+	 * Keep only known scopes from a space-separated list, always including
+	 * the basic one.
+	 *
+	 * @param string $scope Space-separated scopes.
+	 * @return string
+	 */
+	public static function clean_scope( string $scope ): string {
+		$asked   = preg_split( '/\s+/', $scope );
+		$granted = array_intersect( self::scopes(), is_array( $asked ) ? $asked : array() );
+
+		return implode( ' ', array_unique( array_merge( array( self::SCOPE ), $granted ) ) );
+	}
 
 	/**
 	 * Lifetimes, in seconds.

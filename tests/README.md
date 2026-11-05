@@ -1,7 +1,7 @@
 # Running WPMark's tests
 
 The tests start a real WordPress with the MCP Adapter and WPMark active,
-then check what WPMark does. They need three things: PHP 8.1+, Composer, and
+then check what WPMark does. They need three things: PHP 8.2+, Composer, and
 an **empty MySQL database that exists only for tests**. The suite wipes that
 database on every run, so never point it at a real site's database.
 
@@ -45,6 +45,16 @@ composer test    # the PHPUnit suite
 composer lint    # WordPress Coding Standards
 ```
 
+## Testing with Elementor
+
+A few tests need the real Elementor plugin. They are skipped unless
+`WPMARK_TEST_ELEMENTOR_DIR` points at a copy of it (CI does this once per run):
+
+```bash
+git clone --depth 1 --branch v4.0.8 https://github.com/elementor/elementor.git .wp/elementor
+WPMARK_TEST_ELEMENTOR_DIR="$PWD/.wp/elementor" composer test
+```
+
 ## Testing against another WordPress version
 
 Match the test framework to WordPress core, then run as usual:
@@ -68,8 +78,11 @@ trying a real AI app:
 2. Run `npx @modelcontextprotocol/inspector`, choose **Streamable HTTP**, paste
    the address, add the `Authorization` header, and connect.
 3. Check:
-   - **Tools**: seven `wpmark-…` tools when a form plugin is active (five
-     without), each marked read-only, each with a full description.
+   - **Tools**: thirteen `wpmark-…` tools when a form plugin is active
+     (eleven without; one more, the SEO fix list, with Rank Math), each
+     marked read-only, each with a full description. With
+     drafts switched on, three more (create, update and list drafts); the
+     first two are marked as writing, never destructive.
    - Call `wpmark-site-overview` with no arguments: it returns the site's name,
      content counts and the list of available tools.
    - Call `wpmark-list-leads` as an administrator, editor and author: contact

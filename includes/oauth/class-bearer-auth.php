@@ -33,6 +33,15 @@ final class Bearer_Auth {
 	private static bool $invalid = false;
 
 	/**
+	 * The accepted token of this request: its scopes and app name. Null
+	 * when the request was not signed in with an OAuth token (for example
+	 * a connection key, or a logged-in browser).
+	 *
+	 * @var array{scopes: string[], app: string}|null
+	 */
+	private static ?array $accepted = null;
+
+	/**
 	 * The determine_current_user filter.
 	 *
 	 * @param int|false $user_id User found by earlier checks, if any.
@@ -64,6 +73,11 @@ final class Bearer_Auth {
 			return $user_id;
 		}
 
+		self::$accepted = array(
+			'scopes' => explode( ' ', $check['scope'] ),
+			'app'    => $check['app'],
+		);
+
 		return $check['user'];
 	}
 
@@ -81,7 +95,7 @@ final class Bearer_Auth {
 	 * Check an access token, and say why it was refused if it was.
 	 *
 	 * @param string $token Access token.
-	 * @return array{user: int|null, outcome: string, app: string}
+	 * @return array{user: int|null, outcome: string, app: string, scope: string}
 	 */
 	private static function check_token( string $token ): array {
 		$row = Store::find( $token, 'access' );
@@ -106,7 +120,7 @@ final class Bearer_Auth {
 
 		Store::touch( (int) $row['id'] );
 
-		return self::outcome( $user->ID, Connection_Log::OK, $app );
+		return self::outcome( $user->ID, Connection_Log::OK, $app, OAuth::clean_scope( (string) $row['scope'] ) );
 	}
 
 	/**
@@ -115,14 +129,37 @@ final class Bearer_Auth {
 	 * @param int|null $user    User ID, or null when refused.
 	 * @param string   $outcome Connection_Log outcome.
 	 * @param string   $app     App name.
-	 * @return array{user: int|null, outcome: string, app: string}
+	 * @param string   $scope   Granted scopes, space-separated.
+	 * @return array{user: int|null, outcome: string, app: string, scope: string}
 	 */
-	private static function outcome( ?int $user, string $outcome, string $app = '' ): array {
+	private static function outcome( ?int $user, string $outcome, string $app = '', string $scope = '' ): array {
 		return array(
 			'user'    => $user,
 			'outcome' => $outcome,
 			'app'     => $app,
+			'scope'   => $scope,
 		);
+	}
+
+	/**
+	 * Whether this request was signed in with an OAuth token, and the token
+	 * does not include a scope. Requests without a token (connection keys)
+	 * are not limited by scopes.
+	 *
+	 * @param string $scope Scope, e.g. OAuth::DRAFTS_SCOPE.
+	 * @return bool
+	 */
+	public static function lacks_scope( string $scope ): bool {
+		return null !== self::$accepted && ! in_array( $scope, self::$accepted['scopes'], true );
+	}
+
+	/**
+	 * The name of the app that signed this request in, or "".
+	 *
+	 * @return string
+	 */
+	public static function app_name(): string {
+		return self::$accepted['app'] ?? '';
 	}
 
 	/**
@@ -138,7 +175,8 @@ final class Bearer_Auth {
 	 * Forget the per-request state. For tests.
 	 */
 	public static function reset(): void {
-		self::$invalid = false;
+		self::$invalid  = false;
+		self::$accepted = null;
 	}
 
 	/**

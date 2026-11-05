@@ -32,6 +32,14 @@ final class Plugin {
 
 		self::start_adapter();
 		self::register_hooks();
+
+		/**
+		 * Fires once WPMark has started, for add-ons such as WPMark Pro.
+		 *
+		 * Does not fire when WPMark could not start (for example, the MCP
+		 * Adapter is missing), so an add-on hooked here never runs alone.
+		 */
+		do_action( 'wpmark_loaded' );
 	}
 
 	/**
@@ -77,11 +85,20 @@ final class Plugin {
 		// "Sign in with WordPress" for Claude, ChatGPT and other apps (OAuth 2.1).
 		OAuth\OAuth::register();
 
+		// Agent-ready features, each off until an administrator switches it on.
+		Agents\Llms_Txt::register();
+
+		// Custom-designed pages: their CSS, and the blank landing page template.
+		Drafts\Html_Page::register();
+		add_action( 'init', array( Agents\WebMCP::class, 'register' ) );
+
 		// The health check's test route.
 		add_action( 'rest_api_init', array( Admin\Connection_Doctor::class, 'register_route' ) );
 
 		// The WPMark screens, and suggested privacy policy text for site owners.
 		if ( is_admin() ) {
+			// Label drafts created by AI apps in the Pages and Posts lists.
+			add_filter( 'display_post_states', array( Drafts\Drafts::class, 'post_states' ), 10, 2 );
 			Admin\Admin::register();
 			Privacy\Privacy_Policy::register();
 		}
@@ -102,7 +119,7 @@ final class Plugin {
 			'wpmark',
 			array(
 				'label'       => __( 'Marketing', 'wpmark' ),
-				'description' => __( 'Read-only tools that help a marketing team understand their site, content, SEO and leads.', 'wpmark' ),
+				'description' => __( 'Tools that help a marketing team understand their site, content, SEO and leads, and draft pages in the site\'s own style.', 'wpmark' ),
 			)
 		);
 	}

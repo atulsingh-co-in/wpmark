@@ -236,6 +236,98 @@ class Test_OAuth extends WP_UnitTestCase {
 	}
 
 	/**
+	 * With drafts on, the consent screen offers the drafts box to roles allowed to create drafts.
+	 */
+	public function test_consent_offers_drafts_when_allowed(): void {
+		$client  = $this->register();
+		$request = $this->authorize_request( array( 'client_id' => $client['client_id'] ) );
+
+		$this->assertStringNotContainsString( 'value="wpmark:drafts"', Authorize::process( $request, $this->user( 'editor' ) )['body'], 'Drafts are off by default.' );
+
+		Settings::save_drafts( true );
+
+		$editor      = Authorize::process( $request, $this->user( 'editor' ) )['body'];
+		$contributor = Authorize::process( $request, $this->user( 'contributor' ) )['body'];
+
+		$this->assertStringContainsString( 'value="wpmark:drafts"', $editor );
+		$this->assertStringNotContainsString( 'checked', $editor, 'The box starts unticked.' );
+		$this->assertStringContainsString( 'cannot publish, delete anything', $editor );
+		$this->assertStringNotContainsString( 'value="wpmark:drafts"', $contributor, 'Contributors cannot create drafts by default.' );
+	}
+
+	/**
+	 * An add-on can offer its own scope; only people it allows see and get it.
+	 */
+	public function test_add_on_scope(): void {
+		$extra = static fn( array $scopes ): array => $scopes + array(
+			'wpmark:publish' => array(
+				'label'   => 'Also let it publish.',
+				'allowed' => static fn( \WP_User $user ): bool => user_can( $user, 'manage_options' ),
+			),
+			'other:scope'    => array(
+				'label'   => 'Not a WPMark scope.',
+				'allowed' => '__return_true',
+			),
+		);
+		add_filter( 'wpmark_oauth_scopes', $extra );
+		add_filter( 'wpmark_publishing_allowed', '__return_true' );
+
+		$this->assertSame( array( OAuth::SCOPE, OAuth::DRAFTS_SCOPE, 'wpmark:publish' ), OAuth::scopes(), 'Scopes not starting with "wpmark:" are ignored.' );
+
+		$client  = $this->register();
+		$request = $this->authorize_request( array( 'client_id' => $client['client_id'] ) );
+		$admin   = $this->user( 'administrator' );
+
+		$this->assertStringContainsString( 'value="wpmark:publish"', Authorize::process( $request, $admin )['body'] );
+		$this->assertStringContainsString( 'publishes only if you allow it', Authorize::process( $request, $admin )['body'] );
+		$this->assertStringNotContainsString( 'value="wpmark:publish"', Authorize::process( $request, $this->user( 'editor' ) )['body'] );
+
+		$tokens = $this->exchange( $client, $this->code( $client, $admin, array( 'scopes' => array( 'wpmark:publish', 'other:scope' ) ) ) );
+		$this->assertSame( OAuth::SCOPE . ' wpmark:publish', $tokens['scope'] );
+
+		$editor = $this->exchange( $client, $this->code( $client, $this->user( 'editor' ), array( 'scopes' => array( 'wpmark:publish' ) ) ) );
+		$this->assertSame( OAuth::SCOPE, $editor['scope'], 'Not granted to people the add-on does not allow.' );
+
+		remove_filter( 'wpmark_oauth_scopes', $extra );
+		remove_filter( 'wpmark_publishing_allowed', '__return_true' );
+	}
+
+	/**
+	 * Ticking the box grants the drafts scope, which survives a refresh; not ticking it does not.
+	 */
+	public function test_drafts_scope(): void {
+		Settings::save_drafts( true );
+		$client = $this->register();
+		$user   = $this->user( 'editor' );
+
+		$with    = $this->exchange( $client, $this->code( $client, $user, array( 'scopes' => array( OAuth::DRAFTS_SCOPE ) ) ) );
+		$without = $this->exchange( $client, $this->code( $client, $user ) );
+
+		$this->assertSame( OAuth::SCOPE . ' ' . OAuth::DRAFTS_SCOPE, $with['scope'] );
+		$this->assertSame( OAuth::SCOPE, $without['scope'] );
+
+		$refreshed = $this->token_request(
+			array(
+				'grant_type'    => 'refresh_token',
+				'refresh_token' => $with['refresh_token'],
+				'client_id'     => $client['client_id'],
+			)
+		)->get_data();
+
+		$this->assertSame( OAuth::SCOPE . ' ' . OAuth::DRAFTS_SCOPE, $refreshed['scope'] );
+	}
+
+	/**
+	 * A person not allowed to create drafts cannot get the scope by sending the box anyway.
+	 */
+	public function test_drafts_scope_needs_permission(): void {
+		$client = $this->register();
+		$tokens = $this->exchange( $client, $this->code( $client, $this->user( 'editor' ), array( 'scopes' => array( OAuth::DRAFTS_SCOPE ) ) ) );
+
+		$this->assertSame( OAuth::SCOPE, $tokens['scope'], 'Drafts are switched off for the site.' );
+	}
+
+	/**
 	 * People whose role is switched off cannot approve.
 	 */
 	public function test_switched_off_role_cannot_approve(): void {
@@ -519,19 +611,23 @@ class Test_OAuth extends WP_UnitTestCase {
 	 * @param array    $client   Client.
 	 * @param \WP_User $user     Person.
 	 * @param string   $decision "allow" or "deny".
+	 * @param array    $extra    More form fields, such as the drafts box.
 	 * @return array Result.
 	 */
-	private function decide( array $client, \WP_User $user, string $decision ): array {
+	private function decide( array $client, \WP_User $user, string $decision, array $extra = array() ): array {
 		wp_set_current_user( $user->ID );
 
 		$nonce = wp_create_nonce( 'wpmark_oauth_' . $client['client_id'] . '_' . self::challenge( $this->verifier ) );
 
 		return Authorize::process(
 			$this->authorize_request(
-				array(
-					'client_id'     => $client['client_id'],
-					'decision'      => $decision,
-					'_wpmark_nonce' => $nonce,
+				array_merge(
+					array(
+						'client_id'     => $client['client_id'],
+						'decision'      => $decision,
+						'_wpmark_nonce' => $nonce,
+					),
+					$extra
 				),
 				'POST'
 			),
@@ -544,10 +640,11 @@ class Test_OAuth extends WP_UnitTestCase {
 	 *
 	 * @param array    $client Client.
 	 * @param \WP_User $user   Person.
+	 * @param array    $extra  More form fields, such as the drafts box.
 	 * @return string
 	 */
-	private function code( array $client, \WP_User $user ): string {
-		$result = $this->decide( $client, $user, 'allow' );
+	private function code( array $client, \WP_User $user, array $extra = array() ): string {
+		$result = $this->decide( $client, $user, 'allow', $extra );
 
 		$this->assertSame( 'redirect', $result['type'] );
 		parse_str( (string) wp_parse_url( $result['url'], PHP_URL_QUERY ), $query );

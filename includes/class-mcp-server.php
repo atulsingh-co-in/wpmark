@@ -66,7 +66,7 @@ final class Mcp_Server {
 			self::REST_NAMESPACE,
 			self::REST_ROUTE,
 			'WPMark',
-			__( 'Marketing tools for this WordPress site: content, SEO and leads. Read-only.', 'wpmark' ),
+			self::description(),
 			WPMARK_VERSION,
 			array( HttpTransport::class ),
 			ErrorLogMcpErrorHandler::class,
@@ -87,6 +87,21 @@ final class Mcp_Server {
 				)
 			);
 		}
+	}
+
+	/**
+	 * What the server tells the AI about itself.
+	 *
+	 * @return string
+	 */
+	public static function description(): string {
+		if ( ! Settings::drafts_enabled() ) {
+			return __( 'Marketing tools for this WordPress site: content, SEO and leads. Read-only.', 'wpmark' );
+		}
+
+		return Settings::publishing_allowed()
+			? __( 'Marketing tools for this WordPress site: content, SEO and leads, plus drafts of pages and posts in the site\'s own style. Publishes only where the site administrator allows it; never deletes anything.', 'wpmark' )
+			: __( 'Marketing tools for this WordPress site: content, SEO and leads, plus drafts of pages and posts in the site\'s own style. Never publishes or deletes anything.', 'wpmark' );
 	}
 
 	/**

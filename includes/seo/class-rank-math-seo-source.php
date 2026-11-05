@@ -70,6 +70,31 @@ class Rank_Math_Seo_Source implements Seo_Source {
 	/**
 	 * {@inheritDoc}
 	 *
+	 * Rank Math keeps these in post meta. Its title and description may use
+	 * its variables such as %sep% and %sitename%, which are kept as typed.
+	 *
+	 * @param int    $post_id     Post ID of a WPMark draft.
+	 * @param string $title       SEO title, or "".
+	 * @param string $description Meta description, or "".
+	 * @param string $keyword     Focus keyword, or "".
+	 */
+	public function save_draft_meta( int $post_id, string $title, string $description, string $keyword ): void {
+		$values = array(
+			'rank_math_title'         => $title,
+			'rank_math_description'   => $description,
+			'rank_math_focus_keyword' => $keyword,
+		);
+
+		foreach ( $values as $key => $value ) {
+			if ( '' !== $value ) {
+				update_post_meta( $post_id, $key, wp_slash( $value ) );
+			}
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 *
 	 * @param int[] $post_ids Post IDs.
 	 */
 	public function incoming_links( array $post_ids ): array {

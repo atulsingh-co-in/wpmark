@@ -8,6 +8,8 @@
 namespace WPMark\Abilities;
 
 use WP_Error;
+use WPMark\OAuth\Bearer_Auth;
+use WPMark\OAuth\OAuth;
 use WPMark\Output\Untrusted_Text;
 use WPMark\Settings;
 
@@ -23,9 +25,13 @@ defined( 'ABSPATH' ) || exit;
  * A subclass says what it is (slug, label, description, inputs) and what it
  * does (run()). This class handles the parts every ability shares:
  *
- * - Registration with WordPress, marked read-only and safe to repeat.
+ * - Registration with WordPress, marked read-only and safe to repeat
+ *   (or, for the few tools that create drafts, marked as writing).
  * - Permission: the person must be allowed to use WPMark (their role is
- *   switched on) plus whatever extra capability the ability needs.
+ *   switched on) plus whatever extra capability the ability needs. Tools
+ *   that create drafts also need drafts switched on for the site, a role
+ *   allowed to create them, and, for apps that signed in, the person's
+ *   agreement on the sign-in screen.
  * - Friendly errors: Invalid_Input becomes a plain-language message.
  */
 abstract class Ability {
@@ -111,6 +117,26 @@ abstract class Ability {
 	}
 
 	/**
+	 * Whether this tool creates or changes drafts. Everything else only reads.
+	 *
+	 * @return bool
+	 */
+	public function is_write(): bool {
+		return false;
+	}
+
+	/**
+	 * Whether this belongs to the drafts feature: offered only when drafts
+	 * are switched on, and only to people allowed to create them. True for
+	 * every writing tool, and for helpers such as the drafts list.
+	 *
+	 * @return bool
+	 */
+	public function is_drafting(): bool {
+		return $this->is_write();
+	}
+
+	/**
 	 * Whether the site has what this ability needs (e.g. a form plugin).
 	 *
 	 * @return bool
@@ -152,7 +178,7 @@ abstract class Ability {
 	 * @return bool
 	 */
 	public function is_offered(): bool {
-		return $this->is_enabled() && $this->is_available();
+		return $this->is_enabled() && $this->is_available() && ( ! $this->is_drafting() || Settings::drafts_enabled() );
 	}
 
 	/**
@@ -198,12 +224,15 @@ abstract class Ability {
 		unset( $input );
 
 		if ( ! $this->is_offered() ) {
-			return new WP_Error(
-				'wpmark_unavailable',
-				$this->is_enabled()
-					? $this->unavailable_reason()
-					: __( 'This tool has been switched off by the site administrator.', 'wpmark' )
-			);
+			if ( ! $this->is_enabled() ) {
+				$reason = __( 'This tool has been switched off by the site administrator.', 'wpmark' );
+			} elseif ( ! $this->is_available() ) {
+				$reason = $this->unavailable_reason();
+			} else {
+				$reason = __( 'Creating drafts is switched off on this site. An administrator can switch it on under WPMark → Access & privacy.', 'wpmark' );
+			}
+
+			return new WP_Error( 'wpmark_unavailable', $reason );
 		}
 
 		if ( ! Settings::user_can_connect( wp_get_current_user() ) ) {
@@ -211,6 +240,22 @@ abstract class Ability {
 				'wpmark_forbidden',
 				__( 'Your WordPress account is not allowed to use WPMark. Ask a site administrator to switch on your role under WPMark → Access & privacy.', 'wpmark' )
 			);
+		}
+
+		if ( $this->is_drafting() ) {
+			if ( ! Settings::user_can_draft( wp_get_current_user() ) ) {
+				return new WP_Error(
+					'wpmark_drafts_forbidden',
+					__( 'Your role is not allowed to create drafts through WPMark. Ask a site administrator to tick "Can create drafts" for your role under WPMark → Access & privacy.', 'wpmark' )
+				);
+			}
+
+			if ( Bearer_Auth::lacks_scope( OAuth::DRAFTS_SCOPE ) ) {
+				return new WP_Error(
+					'wpmark_drafts_not_granted',
+					__( 'When you connected this app, you did not allow it to create drafts. To allow it, disconnect WPMark in the app, connect again, and tick "Also let it create draft pages and posts" on the WordPress sign-in screen.', 'wpmark' )
+				);
+			}
 		}
 
 		return $this->extra_permission();
@@ -290,9 +335,10 @@ abstract class Ability {
 
 		if ( self::TOOL === $this->type() ) {
 			$meta['annotations'] = array(
-				'readonly'    => true,
+				'readonly'    => ! $this->is_write(),
+				// Writing tools only create or update drafts: never destructive.
 				'destructive' => false,
-				'idempotent'  => true,
+				'idempotent'  => ! $this->is_write(),
 			);
 		}
 

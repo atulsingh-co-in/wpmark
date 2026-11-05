@@ -10,6 +10,8 @@ security plugin, a cache or the web server), not from WPMark.
 |---|---|
 | "This copy of WPMark is incomplete" | It was downloaded with GitHub's green "Download ZIP" button. Delete it and install the zip from [atulsingh.co.in/wpmark](https://atulsingh.co.in/wpmark/) or the [Releases page](https://github.com/atulsingh-co-in/wpmark/releases). |
 | "WPMark needs WordPress 6.9 or newer" | Update WordPress under **Dashboard → Updates**. |
+| "This plugin requires a newer version of PHP" | WPMark needs PHP 8.2 or newer. Older versions no longer get security fixes. Change the PHP version in your hosting control panel, or ask your host. |
+| Health check: **PHP security** is red or yellow | Your PHP version is unsupported or is missing recent security fixes. This affects your whole site, not just WPMark. Ask your host to update PHP; the health check names the version you need. |
 | "The uploaded file exceeds the upload_max_filesize" | Your host limits upload size. Ask your host to raise it to 8 MB, or upload the unzipped `wpmark` folder to `wp-content/plugins/` by SFTP. |
 | "Destination folder already exists" | An older copy is installed. Choose **Replace current with uploaded**, or delete the old copy first (for example a `wpmark-main` folder). |
 
@@ -37,6 +39,17 @@ security plugin, a cache or the web server), not from WPMark.
 | SEO checks mention missing Rank Math | Meta description, focus keyword and noindex checks need Rank Math. Other checks work without it. |
 | The AI's answer seems wrong | Ask it which WPMark tool it used and what it saw. Then check the page or lead in WordPress. If WPMark returned wrong data, [report it](https://github.com/atulsingh-co-in/wpmark/issues). |
 | A tool you expect isn't offered | An administrator may have switched it off under **WPMark → Tools**. After changing tools, reconnect or start a new chat. |
+| The drafting tools are missing | Drafts are off, or your role isn't ticked under **Can create drafts** (**WPMark → Access & privacy**). After changing this, start a new chat. |
+| "When you connected this app, you did not allow it to create drafts" | Disconnect WPMark in your AI app, connect again, and tick **Also let it create draft pages and posts** on the WordPress sign-in screen. |
+| "Your AI apps have created or changed 30 drafts in the last hour" | A safety limit, so a runaway app can't flood your site. Wait a while, or ask for several changes in one request. |
+| "This page is no longer a draft" | The draft was published, scheduled or sent for review, so WPMark won't change it. Ask the AI for a new draft instead. |
+| An image is missing from a draft | Drafts only use images already in your media library. Upload the image under **Media**, then ask again. |
+| A page built from Elementor widgets or blocks looks plain or unbalanced | Ask the AI to copy one of your best-looking pages or saved templates and change the text. Page design from scratch is experimental in this version. |
+| A page made with the experimental custom design looks unstyled or broken | WPMark must be active: it adds the page's styling. If a caching or optimisation plugin combines or delays CSS, clear its cache. If it still looks wrong, keep it as a draft and [tell us](https://github.com/atulsingh-co-in/wpmark/issues) with a screenshot and your theme and page builder. |
+| The SEO fix list is missing | It needs Rank Math. |
+| An Elementor draft doesn't open, or looks unstyled | Check Elementor is active and up to date, and open the draft from **WPMark → Drafts by AI**, which opens it in Elementor. If it still fails, [report it](https://github.com/atulsingh-co-in/wpmark/issues) with your Elementor version. |
+| **Agent ready**: AI assistants are blocked by a firewall | Often Cloudflare's "Block AI bots" or "AI Crawl Control". In Cloudflare, allow the AI search and assistant crawlers you want (for example OAI-SearchBot, ChatGPT-User, Claude-User, PerplexityBot). Other firewalls have similar settings. |
+| **Agent ready**: the llms.txt switch is greyed out | A file on your server or your SEO plugin (Rank Math or Yoast) already provides llms.txt. WPMark leaves it alone, so there is only one. |
 | Claude Desktop (config file) doesn't show WPMark | Check Node.js is installed (`node -v` in a terminal), that the config file is valid JSON, and quit and reopen Claude Desktop fully. Adding WPMark as a connector under **Settings → Connectors** is simpler. |
 
 ## Still stuck?

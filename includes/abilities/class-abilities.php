@@ -25,15 +25,25 @@ final class Abilities {
 	 * @return Ability[]
 	 */
 	public static function all(): array {
-		return array(
+		$abilities = array(
 			// Tools.
 			new Site_Overview(),
 			new Search_Content(),
 			new Get_Content(),
 			new Content_Inventory(),
 			new Find_Seo_Gaps(),
+			new Seo_Fix_List(),
+			new Check_Links(),
+			new Agent_Readiness_Check(),
 			new List_Leads(),
 			new Lead_Summary(),
+			new Design_Guide(),
+			new Find_Templates(),
+			new Page_Structure(),
+			new List_Media(),
+			new Create_Draft(),
+			new Update_Draft(),
+			new List_Drafts(),
 			// Resources.
 			new Site_Profile_Resource(),
 			new Forms_Resource(),
@@ -41,7 +51,30 @@ final class Abilities {
 			new Lead_Review_Prompt(),
 			new Content_Plan_Prompt(),
 			new Seo_Check_Prompt(),
+			new Landing_Page_Prompt(),
+			new Blog_Post_Prompt(),
+			new Weekly_Report_Prompt(),
 		);
+
+		/**
+		 * Filters everything WPMark offers, so an add-on can add its own
+		 * tools, resources and prompts. Each must extend Ability, which keeps
+		 * WPMark's permission checks (role switched on, drafts allowed,
+		 * sign-in consent) in front of it.
+		 *
+		 * @param Ability[] $abilities WPMark's own abilities.
+		 */
+		$added = apply_filters( 'wpmark_abilities', $abilities );
+		$all   = array();
+
+		// WPMark's own come first and keep their names, so an add-on cannot replace them.
+		foreach ( array_merge( $abilities, is_array( $added ) ? $added : array() ) as $ability ) {
+			if ( $ability instanceof Ability && ! isset( $all[ $ability->name() ] ) ) {
+				$all[ $ability->name() ] = $ability;
+			}
+		}
+
+		return array_values( $all );
 	}
 
 	/**

@@ -1,6 +1,6 @@
 # WPMark Beta Programme Terms
 
-Version 1.0 · Effective 25 September 2026
+Version 1.1 · Effective 5 November 2026
 
 These terms apply when you join the WPMark beta programme, for example by
 signing up at [atulsingh.co.in/wpmark](https://atulsingh.co.in/wpmark/) and
@@ -15,7 +15,9 @@ trading as atulsingh.co.in ("we", "us"). Contact: **join@atulsingh.co.in**.
 ## 2. What the beta programme is
 
 - WPMark is a free, open-source WordPress plugin that lets AI apps read your
-  site's content, SEO settings and form entries.
+  site's content, SEO settings and form entries and, if you switch it on,
+  create draft pages and posts on your site for you to review. WPMark never
+  publishes or deletes anything itself.
 - The beta programme gives you early versions, a setup guide, updates, and a
   way to send feedback. **It is an experiment:** features may change, break
   or be removed, and the programme may pause or end at any time.
@@ -59,13 +61,22 @@ You are responsible for:
 3. **Your data and your visitors.** You decide whether to enable lead tools
    and at what level. You are responsible for having a lawful basis, an
    up-to-date privacy notice, and contracts with the AI providers you use.
-   See [privacy and your data](privacy-and-data.md).
+   See [privacy and your data](privacy-and-data.md). The same applies to the
+   optional features that share information about your site with AI tools,
+   such as llms.txt and form descriptions for AI agents: you decide whether
+   to switch them on.
 4. **Your AI provider accounts.** Your use of Claude, ChatGPT, Gemini or any
    other AI app is governed by that provider's terms and your agreement with
    them. We are not affiliated with them and have no control over them.
 5. **Checking AI output.** AI answers can be wrong or incomplete. Verify them
    before relying on them or acting on them.
-6. **Keeping credentials private.** Never send us passwords, connection keys
+6. **Reviewing drafts before you publish.** If you switch on drafts, AI
+   apps write the text and layout. Drafts can contain mistakes, claims you
+   can't support, or content that is not right for your brand or your
+   market's rules (for example on advertising, prices or health claims).
+   Check every draft before you publish it. You are responsible for what
+   you publish on your website.
+7. **Keeping credentials private.** Never send us passwords, connection keys
    or visitor data. Don't post them in public places such as GitHub issues.
 
 ## 7. What we don't do

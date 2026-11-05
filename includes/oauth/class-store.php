@@ -378,7 +378,7 @@ final class Store {
 	 * Apps with live access, per person: one row per person and app.
 	 *
 	 * @param int|null $user_id One person, or null for everyone.
-	 * @return array<int, array{user_id: int, client_id: string, client_name: string, connected_at: string, last_used_at: ?string}>
+	 * @return array<int, array{user_id: int, client_id: string, client_name: string, connected_at: string, last_used_at: ?string, drafts: bool}>
 	 */
 	public static function connections( ?int $user_id = null ): array {
 		global $wpdb;
@@ -392,11 +392,13 @@ final class Store {
 			$wpdb->prepare(
 				"SELECT t.user_id, t.client_id, COALESCE(c.client_name, '') AS client_name,
 					( SELECT MIN(f.created_at) FROM {$tokens} f WHERE f.user_id = t.user_id AND f.client_id = t.client_id AND f.type = 'code' ) AS connected_at,
-					( SELECT MAX(a.last_used_at) FROM {$tokens} a WHERE a.user_id = t.user_id AND a.client_id = t.client_id AND a.type = 'access' ) AS last_used_at
+					( SELECT MAX(a.last_used_at) FROM {$tokens} a WHERE a.user_id = t.user_id AND a.client_id = t.client_id AND a.type = 'access' ) AS last_used_at,
+					MAX( CASE WHEN t.scope LIKE %s THEN 1 ELSE 0 END ) AS drafts
 				FROM {$tokens} t LEFT JOIN {$clients} c ON c.client_id = t.client_id
 				WHERE t.type = 'refresh' AND t.revoked = 0 AND t.used = 0 AND t.expires_at > %s{$user}
 				GROUP BY t.user_id, t.client_id, c.client_name
 				ORDER BY connected_at DESC",
+				'%' . $wpdb->esc_like( OAuth::DRAFTS_SCOPE ) . '%',
 				self::time( time() )
 			),
 			ARRAY_A
@@ -410,6 +412,7 @@ final class Store {
 				'client_name'  => (string) $row['client_name'],
 				'connected_at' => (string) $row['connected_at'],
 				'last_used_at' => $row['last_used_at'] ? (string) $row['last_used_at'] : null,
+				'drafts'       => (bool) $row['drafts'],
 			),
 			(array) $rows
 		);

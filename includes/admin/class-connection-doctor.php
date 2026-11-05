@@ -45,6 +45,18 @@ final class Connection_Doctor {
 	public const CHECK_ROUTE = 'wpmark/v1/connection-check';
 
 	/**
+	 * The first PHP release in each supported series with the fixes for the
+	 * critical flaws announced on 21 October 2026 (CVE-2026-109618 and
+	 * CVE-2026-109619). Raise these when PHP announces new security fixes.
+	 */
+	public const PHP_SAFE_RELEASES = array(
+		'8.2' => '8.2.35',
+		'8.3' => '8.3.36',
+		'8.4' => '8.4.27',
+		'8.5' => '8.5.12',
+	);
+
+	/**
 	 * Checks that only look at settings. Fast; safe to run on every page view.
 	 *
 	 * @return array<int, array{id: string, label: string, status: string, message: string, fix: string}>
@@ -52,6 +64,7 @@ final class Connection_Doctor {
 	public static function quick_checks(): array {
 		return array(
 			self::wordpress_version(),
+			self::php_security(),
 			self::mcp_adapter(),
 			self::https(),
 			self::application_passwords(),
@@ -165,6 +178,57 @@ final class Connection_Doctor {
 			sprintf( __( 'WordPress %s.', 'wpmark' ), get_bloginfo( 'version' ) ),
 			$ok ? '' : __( 'Update WordPress to 6.9 or newer from Dashboard → Updates.', 'wpmark' )
 		);
+	}
+
+	/**
+	 * Whether the site's PHP still gets security fixes, and has the latest ones.
+	 *
+	 * PHP runs before WordPress and every plugin, so an unpatched PHP puts the
+	 * whole site at risk, whatever plugins it uses. Only the host can update it.
+	 *
+	 * @return array
+	 */
+	private static function php_security(): array {
+		return self::php_security_for( PHP_VERSION );
+	}
+
+	/**
+	 * The PHP security check for a given version. Public so tests can try
+	 * every case.
+	 *
+	 * @param string $version A PHP version, such as "8.3.12".
+	 * @return array
+	 */
+	public static function php_security_for( string $version ): array {
+		$label  = __( 'PHP security', 'wpmark' );
+		$series = implode( '.', array_slice( explode( '.', $version ), 0, 2 ) );
+		/* translators: %s: PHP version, such as 8.3.12. */
+		$running = sprintf( __( 'PHP %s.', 'wpmark' ), $version );
+
+		if ( version_compare( $series, '8.2', '<' ) ) {
+			return self::result(
+				'php_security',
+				$label,
+				self::PROBLEM,
+				$running . ' ' . __( 'This version no longer receives security fixes, including for critical flaws that attackers are using now.', 'wpmark' ),
+				__( 'Ask your host to move your site to PHP 8.3 or newer. Most hosts let you change it yourself in the hosting control panel, under PHP settings.', 'wpmark' )
+			);
+		}
+
+		$safe = self::PHP_SAFE_RELEASES[ $series ] ?? null;
+
+		if ( null !== $safe && version_compare( $version, $safe, '<' ) ) {
+			return self::result(
+				'php_security',
+				$label,
+				self::WARNING,
+				$running . ' ' . __( 'This version is missing PHP security fixes released on 21 October 2026 for critical flaws that attackers are using.', 'wpmark' ),
+				/* translators: %s: The first safe PHP version, such as 8.3.36. */
+				sprintf( __( 'Ask your host to update PHP to %s or newer. Some hosts add security fixes without changing the version number: if yours says it is already protected, you can ignore this.', 'wpmark' ), $safe )
+			);
+		}
+
+		return self::result( 'php_security', $label, self::GOOD, $running );
 	}
 
 	/**
