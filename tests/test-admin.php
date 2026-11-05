@@ -51,7 +51,7 @@ class Test_Admin extends WP_UnitTestCase {
 		$this->assertSame( array( 'connect' ), array_keys( Admin::tabs() ) );
 
 		$this->login( 'administrator' );
-		$this->assertSame( array( 'connect', 'health', 'tools', 'access' ), array_keys( Admin::tabs() ) );
+		$this->assertSame( array( 'connect', 'health', 'tools', 'access', 'drafts', 'agents' ), array_keys( Admin::tabs() ) );
 	}
 
 	/**
@@ -177,6 +177,98 @@ class Test_Admin extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Drafts are switched on for the site and per role on the Access tab.
+	 */
+	public function test_save_drafts_settings(): void {
+		$this->login( 'administrator' );
+		$this->assertFalse( Settings::drafts_enabled(), 'Off by default.' );
+		$this->assertTrue( Settings::roles()['editor']['drafts'], 'Editors may once it is on.' );
+		$this->assertFalse( Settings::roles()['author']['drafts'] );
+
+		$_POST['drafts']      = '1';
+		$_POST['roles']       = array(
+			'administrator' => array( 'enabled' => '1' ),
+			'editor'        => array( 'enabled' => '1' ),
+			'author'        => array(
+				'enabled' => '1',
+				'drafts'  => '1',
+			),
+		);
+		$_REQUEST['_wpnonce'] = wp_create_nonce( 'wpmark_save_access' );
+
+		$this->capture_redirect( array( Admin::class, 'save_access' ) );
+		unset( $_POST['drafts'] );
+
+		$roles = Settings::roles();
+		$this->assertTrue( Settings::drafts_enabled() );
+		$this->assertTrue( $roles['author']['drafts'] );
+		$this->assertFalse( $roles['editor']['drafts'], 'Unticked means no.' );
+		$this->assertStringContainsString( 'name="roles[author][drafts]" value="1" checked', $this->render_tab( 'access' ) );
+		$this->assertFalse( Settings::custom_design_enabled(), 'Custom page design stays off unless ticked.' );
+
+		$_POST['drafts']        = '1';
+		$_POST['custom_design'] = '1';
+		$_REQUEST['_wpnonce']   = wp_create_nonce( 'wpmark_save_access' );
+		$this->capture_redirect( array( Admin::class, 'save_access' ) );
+		unset( $_POST['drafts'], $_POST['custom_design'] );
+
+		$this->assertTrue( Settings::custom_design_enabled() );
+		$this->assertStringContainsString( 'name="custom_design" value="1" checked', $this->render_tab( 'access' ) );
+	}
+
+	/**
+	 * The Drafts by AI tab says when drafts are off, and lists WPMark drafts.
+	 */
+	public function test_drafts_tab(): void {
+		$this->login( 'administrator' );
+		$this->assertStringContainsString( 'Creating drafts is switched off', $this->render_tab( 'drafts' ) );
+
+		$draft = self::factory()->post->create(
+			array(
+				'post_type'   => 'page',
+				'post_status' => 'draft',
+				'post_title'  => 'Spring launch',
+			)
+		);
+		update_post_meta(
+			$draft,
+			\WPMark\Drafts\Drafts::META,
+			array(
+				'app'     => 'Claude',
+				'user'    => get_current_user_id(),
+				'builder' => 'blocks',
+			)
+		);
+		Settings::save_drafts( true );
+
+		$html = $this->render_tab( 'drafts' );
+		$this->assertStringContainsString( 'Spring launch', $html );
+		$this->assertStringContainsString( 'Claude', $html );
+		$this->assertStringNotContainsString( 'switched off', $html );
+	}
+
+	/**
+	 * The Agent ready tab shows the checks and saves the two switches.
+	 */
+	public function test_agents_tab(): void {
+		$this->login( 'administrator' );
+		add_filter( 'pre_http_request', static fn() => new \WP_Error( 'offline', 'No network in tests' ) );
+
+		$html = $this->render_tab( 'agents' );
+		$this->assertStringContainsString( 'AI crawlers (robots.txt)', $html );
+		$this->assertStringContainsString( 'name="llms_txt"', $html );
+		$this->assertStringContainsString( 'name="webmcp"', $html );
+
+		$_POST['llms_txt']    = '1';
+		$_REQUEST['_wpnonce'] = wp_create_nonce( 'wpmark_save_agents' );
+		$this->assertStringContainsString( 'tab=agents', $this->capture_redirect( array( Admin::class, 'save_agents' ) ) );
+		unset( $_POST['llms_txt'] );
+
+		$this->assertTrue( Settings::llms_txt_enabled() );
+		$this->assertFalse( Settings::webmcp_enabled() );
+	}
+
+	/**
 	 * Editors cannot change settings, even with a valid nonce.
 	 */
 	public function test_editor_cannot_save(): void {
@@ -247,11 +339,54 @@ class Test_Admin extends WP_UnitTestCase {
 		$checks = array_column( Connection_Doctor::quick_checks(), null, 'id' );
 
 		$this->assertSame( Connection_Doctor::GOOD, $checks['wordpress_version']['status'] );
+		$this->assertArrayHasKey( 'php_security', $checks );
 		$this->assertSame( Connection_Doctor::GOOD, $checks['mcp_adapter']['status'] );
 		$this->assertSame( Connection_Doctor::PROBLEM, $checks['https']['status'], 'The test site uses http:// and is not local.' );
 		$this->assertSame( Connection_Doctor::GOOD, $checks['application_passwords']['status'] );
 		$this->assertSame( Connection_Doctor::GOOD, $checks['your_access']['status'] );
 		$this->assertStringContainsString( 'none found', $checks['data_sources']['message'] );
+	}
+
+	/**
+	 * The PHP security check: unsupported, missing the October 2026 fixes, or fine.
+	 *
+	 * @dataProvider php_versions
+	 *
+	 * @param string $version PHP version.
+	 * @param string $status  Expected status.
+	 * @param string $fix     Text expected in the fix, or '' for none.
+	 */
+	public function test_php_security( string $version, string $status, string $fix ): void {
+		$check = Connection_Doctor::php_security_for( $version );
+
+		$this->assertSame( 'php_security', $check['id'] );
+		$this->assertSame( $status, $check['status'] );
+		$this->assertStringContainsString( $version, $check['message'] );
+		if ( '' === $fix ) {
+			$this->assertSame( '', $check['fix'] );
+		} else {
+			$this->assertStringContainsString( $fix, $check['fix'] );
+		}
+	}
+
+	/**
+	 * PHP versions and what the check should say.
+	 *
+	 * @return array<string, array{string, string, string}>
+	 */
+	public function php_versions(): array {
+		return array(
+			'end of life'         => array( '8.1.31', Connection_Doctor::PROBLEM, 'PHP 8.3 or newer' ),
+			'very old'            => array( '7.4.33', Connection_Doctor::PROBLEM, 'PHP 8.3 or newer' ),
+			'8.2 before the fix'  => array( '8.2.34', Connection_Doctor::WARNING, '8.2.35' ),
+			'8.3 before the fix'  => array( '8.3.6', Connection_Doctor::WARNING, '8.3.36' ),
+			'8.4 before the fix'  => array( '8.4.19', Connection_Doctor::WARNING, '8.4.27' ),
+			'8.5 before the fix'  => array( '8.5.11', Connection_Doctor::WARNING, '8.5.12' ),
+			'8.2 with the fix'    => array( '8.2.35', Connection_Doctor::GOOD, '' ),
+			'8.4 after the fix'   => array( '8.4.30', Connection_Doctor::GOOD, '' ),
+			'distribution suffix' => array( '8.3.36-1ubuntu1', Connection_Doctor::GOOD, '' ),
+			'newer series'        => array( '8.6.0', Connection_Doctor::GOOD, '' ),
+		);
 	}
 
 	/**

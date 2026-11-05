@@ -62,8 +62,8 @@ final class Untrusted_Text {
 		// Control characters, except tab and newline.
 		$text = (string) preg_replace( '/[\x00-\x08\x0B-\x1F\x7F]/u', '', $text );
 
-		// Tidy whitespace: single spaces, at most one blank line.
-		$text = (string) preg_replace( '/[ \t]+/', ' ', $text );
+		// Tidy whitespace (including non-breaking spaces): single spaces, at most one blank line.
+		$text = (string) preg_replace( '/[ \t\x{00A0}]+/u', ' ', $text );
 		$text = (string) preg_replace( '/ *\n */', "\n", $text );
 		$text = (string) preg_replace( '/\n{3,}/', "\n\n", $text );
 		$text = trim( $text );

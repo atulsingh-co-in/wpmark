@@ -197,7 +197,8 @@ final class Authorize {
 				'redirect_uri'   => $params['redirect_uri'],
 				'code_challenge' => $params['code_challenge'],
 				'resource'       => '' !== $params['resource'] ? $params['resource'] : null,
-				'scope'          => OAuth::SCOPE,
+				// Extra scopes (such as drafts) only when the person ticked them and is allowed to.
+				'scope'          => OAuth::granted_scope( array_map( 'strval', (array) $request->get_param( 'scopes' ) ), $user ),
 			),
 			OAuth::CODE_LIFETIME
 		);
@@ -244,13 +245,32 @@ final class Authorize {
 		) . '</p><ul>';
 		$body .= '<li>' . esc_html__( 'Read your published pages and posts, and their SEO settings.', 'wpmark' ) . '</li>';
 		$body .= '<li>' . esc_html( $leads_line ) . '</li>';
-		$body .= '</ul><p class="wpmark-never">' . esc_html__( 'It cannot publish, change or delete anything.', 'wpmark' ) . '</p>';
+		$body .= '</ul>';
+
+		// Inside the form, below: each unticked unless the person chooses it.
+		$extras = '';
+
+		foreach ( OAuth::optional_scopes() as $scope => $details ) {
+			if ( call_user_func( $details['allowed'], $user ) ) {
+				$extras .= '<p class="wpmark-extra"><label><input type="checkbox" name="scopes[]" value="' . esc_attr( $scope ) . '"> ' . esc_html( $details['label'] ) . '</label></p>';
+			}
+		}
+
+		if ( Settings::publishing_allowed() ) {
+			$never = __( 'It cannot delete anything, and publishes only if you allow it below.', 'wpmark' );
+		} elseif ( '' !== $extras ) {
+			$never = __( 'It cannot publish, delete anything, or change published content.', 'wpmark' );
+		} else {
+			$never = __( 'It cannot publish, change or delete anything.', 'wpmark' );
+		}
+
+		$body .= '<p class="wpmark-never">' . esc_html( $never ) . '</p>';
 		$body .= '<p class="wpmark-where">' . sprintf(
 			/* translators: %s: web address the person will return to. */
 			esc_html__( 'After you choose, you will return to %s.', 'wpmark' ),
 			'<strong>' . esc_html( $host ) . '</strong>'
 		) . '</p>';
-		$body .= '<form method="post" action="' . esc_url( OAuth::url( 'authorize' ) ) . '">' . $hidden;
+		$body .= '<form method="post" action="' . esc_url( OAuth::url( 'authorize' ) ) . '">' . $hidden . $extras;
 		$body .= '<button type="submit" name="decision" value="allow" class="button button-primary">' . esc_html__( 'Allow', 'wpmark' ) . '</button> ';
 		$body .= '<button type="submit" name="decision" value="deny" class="button">' . esc_html__( 'Cancel', 'wpmark' ) . '</button></form>';
 		$body .= '<p class="wpmark-small">' . esc_html__( 'You can disconnect it any time under WPMark → Connect.', 'wpmark' ) . ' <a href="' . esc_url( wp_logout_url( self::current_url_from_params( $params ) ) ) . '">' . esc_html__( 'Not you? Log out', 'wpmark' ) . '</a></p>';

@@ -6,7 +6,7 @@
 
 - [ ] `composer lint` passes
 - [ ] `composer test` passes, with tests for the change
-- [ ] No tool publishes, edits, trashes or deletes anything
+- [ ] No tool publishes, changes published content, trashes or deletes anything; writing tools only create or change WPMark drafts
 - [ ] New tools have a real permission check and a clear description
 - [ ] Only the personal data a tool needs is returned
 - [ ] User-facing text is plain language and translatable

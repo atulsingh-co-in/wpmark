@@ -3,6 +3,60 @@
 All notable changes to WPMark. Versions follow [semantic versioning](https://semver.org):
 0.x versions are beta, and any of them may change behaviour.
 
+## 0.4.0 (public beta, 5 November 2026)
+
+**Drafts in your site's own style, AI visibility checks, and PHP safety.**
+WPMark still only reads unless an administrator switches drafts on.
+
+- **Drafts (off by default).** AI apps can create draft pages and posts
+  built with your page builder, colours, fonts, page templates and forms,
+  and change the drafts they created. A person always reviews and publishes.
+  - Switch on under **WPMark → Access & privacy**, for the roles you choose
+    (administrators and editors by default).
+  - Each person must also tick **Also let it create draft pages and posts**
+    when they connect their app.
+  - Never publishes, never changes published pages, never uploads files,
+    never deletes anything. Scripts and custom code are removed. Up to 30
+    drafts per person per hour.
+  - New **Drafts by AI** tab, and a "Created by AI" label in Pages and Posts.
+- **Page builders.** The WordPress block editor with any theme (theme.json
+  colours, fonts and patterns), and Elementor and Elementor Pro (global
+  colours and fonts, saved templates, containers or sections). Drafts follow
+  each builder's own format. Forms from Contact Form 7, WPForms and Gravity
+  Forms can be embedded.
+- **Experimental: custom-designed pages** (off unless switched on under
+  Access & privacy). For a polished landing page, the AI can write
+  the page's own HTML and CSS. WPMark removes scripts, code, form fields and
+  outside images and fonts; limits every CSS rule to the page, so the site's
+  header, footer and menus can't change; gives the CSS the site's colours and
+  fonts as variables linked to the theme or Elementor kit; and returns design
+  notes (missing mobile rules, main heading, image descriptions). Pages can
+  keep the site's header and footer at full width, or stand alone on a blank
+  template (Elementor Canvas, or WPMark's own for other themes).
+- **New tools:** design guide, find templates, page structure, list media,
+  create, change and list drafts (a draft can also copy a whole page and
+  change some of its text), an AI visibility check, an **SEO fix list**
+  (pages whose search title or description needs work, for the AI to write
+  better ones) and an **internal link checker** (broken links, links to
+  unpublished pages, and pages nothing links to, with pages that could).
+- **New playbooks:** Write a blog post, Weekly marketing report and Build a
+  landing page.
+- **Agent ready tab.** Checks whether AI search and assistants can read your
+  site: robots.txt crawler by crawler, firewalls such as Cloudflare,
+  structured data, sitemap and llms.txt. Two optional switches, both off by
+  default: publish an **llms.txt** summary of your public pages, and describe
+  your contact and search forms for AI agents in the browser (**WebMCP**,
+  experimental).
+- **PHP 8.2 or newer is now required.** Older versions no longer get security
+  fixes. A new health check, **PHP security**, says whether your PHP version
+  has the latest security fixes.
+- **For developers:** hooks for add-ons (`docs/hooks.md`).
+- **Beta terms version 1.1:** covers drafts (section 2) and reviewing drafts
+  before you publish (section 6).
+
+If you connected an app before 0.4.0 and want it to create drafts: switch
+drafts on, then disconnect and reconnect the app and tick the drafts box.
+
 ## 0.3.4 (public beta)
 
 - **Health check accuracy.** "Recent connections from AI apps" no longer

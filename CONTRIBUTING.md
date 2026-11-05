@@ -39,7 +39,7 @@ later, like the rest of WPMark.
 
 ### Development setup
 
-- PHP 8.1+, Composer, and MySQL or MariaDB for tests.
+- PHP 8.2+, Composer, and MySQL or MariaDB for tests.
 - `composer install`
 - `composer lint`: WordPress Coding Standards (PHPCS).
 - `composer test`: PHPUnit on the WordPress test framework. See

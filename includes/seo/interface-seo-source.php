@@ -56,4 +56,15 @@ interface Seo_Source {
 	 * @return array<int, int> Post ID => incoming internal links.
 	 */
 	public function incoming_links( array $post_ids ): array;
+
+	/**
+	 * Save the SEO title, meta description and focus keyword of a draft
+	 * WPMark created. Empty values are left unchanged.
+	 *
+	 * @param int    $post_id     Post ID of a WPMark draft.
+	 * @param string $title       SEO title, or "".
+	 * @param string $description Meta description, or "".
+	 * @param string $keyword     Focus keyword, or "".
+	 */
+	public function save_draft_meta( int $post_id, string $title, string $description, string $keyword ): void;
 }

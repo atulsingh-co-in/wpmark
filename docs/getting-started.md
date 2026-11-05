@@ -9,6 +9,8 @@ terminal.
 [4. Choose who sees what](#4-choose-who-sees-what) ·
 [5. Connect your AI app](#5-connect-your-ai-app) ·
 [6. Ask your first questions](#6-ask-your-first-questions) ·
+[7. Optional: let AI draft pages](#7-optional-let-ai-draft-pages) ·
+[8. Optional: get your site ready for AI](#8-optional-get-your-site-ready-for-ai) ·
 [Updating and removing](#updating-and-removing)
 
 ---
@@ -17,7 +19,7 @@ terminal.
 
 You need:
 
-- **WordPress 6.9 or newer** and **PHP 8.1 or newer.** Your host can tell
+- **WordPress 6.9 or newer** and **PHP 8.2 or newer** (8.3 or newer recommended). Your host can tell
   you the PHP version, and so can **Tools → Site Health → Info → Server**.
 - **HTTPS**, meaning your site address starts with `https://`. AI apps only
   connect to secure sites.
@@ -33,9 +35,12 @@ entries), or Contact Form 7 with the free Flamingo plugin. For the SEO
 checks, the Rank Math SEO plugin. Without them WPMark still works for
 content; the lead and SEO tools simply say what is missing.
 
+For drafts, WPMark works with the WordPress block editor (any theme) and
+with Elementor or Elementor Pro.
+
 > **Beta tip:** try WPMark on a staging or test copy of your site first, and
-> make sure you have a recent backup. WPMark only reads, but that is a good
-> habit with any new plugin.
+> make sure you have a recent backup. WPMark only reads unless you switch on
+> drafts, but a backup is a good habit with any new plugin.
 
 ## 1. Download
 
@@ -177,9 +182,94 @@ weekly lead review, content plan from customer questions, and SEO health check.
 
 More ideas: [what you can ask](what-you-can-ask.md).
 
-> **Good to know:** the AI can only read. If you ask it to "fix" or "publish"
-> something, it will tell you what to change, and you make the change in
-> WordPress yourself.
+> **Good to know:** out of the box, the AI can only read. If you ask it to
+> "fix" or "publish" something, it tells you what to change, and you make the
+> change in WordPress yourself. To let it build drafts for you, see step 7.
+
+## 7. Optional: let AI draft pages
+
+AI apps can create draft pages and posts in your site's own style: your page
+builder, colours, fonts, page templates and forms. A person always reviews
+and publishes them.
+
+**Switch it on** (administrators): **WPMark → Access & privacy**.
+
+1. Tick **Let AI apps create draft pages and posts**.
+2. In the roles table, tick **Can create drafts** for the roles that may use
+   it. Administrators and editors are ticked by default; WordPress's own
+   permissions still apply (an author can't create pages, for example).
+3. Click **Save**.
+
+**Each person agrees when they connect.** On the WordPress sign-in screen
+there is a new, unticked box: **Also let it create draft pages and posts for
+me to review.** If you connected before drafts were switched on, disconnect
+WPMark in your AI app and connect again to see it. (Connection keys don't
+have this step: they act with the person's own WordPress permissions.)
+
+**Ask for a draft.** For example:
+
+- "Draft a landing page for our spring webinar. Use the layout of our
+  existing webinar page, our brand colours, and our registration form."
+- "Make a version of our Pune landing page for Mumbai: change the city,
+  address and phone number."
+- "Write a 1,000-word blog post draft about our new service, with an FAQ."
+
+In Claude, the **+** button also has a **Build a landing page** playbook that asks
+the right questions first.
+
+**How pages are built.** The AI copies one of your pages or saved templates
+and changes the text, so the result matches your site, and you edit it as
+usual in the block editor or Elementor. Blog posts work especially well.
+
+**Experimental: custom page design.** Under **Access & privacy** you can also
+tick **Experimental: also let AI apps design pages in their own HTML and
+CSS**. The AI then writes the whole page itself, using your colours and
+fonts; WPMark cleans it and keeps its styling inside the page, so it can
+never change your header, footer or menus. Results still depend on your theme
+and page builder, so check each page on desktop and phone before publishing.
+A fuller page designer is planned for a later version.
+
+The AI first reads how your site is built, then shows you the plan. When you
+agree, it saves a draft and gives you a **preview link**. Ask for changes in
+the chat ("shorter headline", "add testimonials"), then publish the draft
+yourself in WordPress, or in Elementor for Elementor pages.
+
+**What it can and can't do:**
+
+- It creates **drafts** and changes only **drafts it created**, while they
+  are still drafts. It never publishes, never changes published pages, and
+  never deletes anything.
+- Images come from your **media library**; it never uploads files.
+- Scripts, custom code and HTML widgets are removed from drafts.
+- Each person's apps can create or change up to 30 drafts an hour.
+- **WPMark → Drafts by AI** lists every draft, with who created it and which
+  app. In **Pages** and **Posts**, they are labelled "Created by AI".
+
+## 8. Optional: get your site ready for AI
+
+More people now ask ChatGPT, Claude or Perplexity instead of searching. Go to
+**WPMark → Agent ready** to see whether AI can find and read your site:
+
+- **AI crawlers:** what your `robots.txt` allows, crawler by crawler. AI
+  search crawlers (which link to you in answers) are kept separate from
+  training crawlers (blocking those is a business choice).
+- **Firewall:** whether Cloudflare or another firewall blocks AI assistants.
+  Cloudflare blocks AI crawlers by default on many new sites.
+- **Structured data, sitemap and llms.txt.**
+
+Two optional switches, both off by default:
+
+- **Publish an llms.txt summary of your site:** a plain list of your public
+  pages and latest posts at `/llms.txt`. If a file or your SEO plugin already
+  provides one, WPMark leaves it alone.
+- **Describe your contact forms and search box for AI agents (WebMCP,
+  experimental):** adds descriptions that AI agents in a visitor's browser
+  (Chrome and Edge trials) read to fill in your forms correctly. The visitor
+  still checks the message and presses Send. Browsers that don't support it
+  ignore it.
+
+You can also ask your AI app: "Check whether AI search can read our site."
+
 
 ## Updating and removing
 
@@ -194,6 +284,8 @@ connect. Reactivate to carry on where you left off.
 
 **Removing.** Deactivate, then **Delete**. WPMark removes its settings and
 all sign-in data (connected apps and their access). Your posts, pages, forms
-and leads are never touched. Connection keys stay in WordPress profiles
+and leads are never touched. Drafts AI apps created stay, as normal drafts.
+Pages made with the experimental custom design need WPMark active for their
+styling: if you remove WPMark, they keep their content but lose their design. Connection keys stay in WordPress profiles
 until revoked under **Users → Profile → Application Passwords**. Also remove
 the connector from your AI app.

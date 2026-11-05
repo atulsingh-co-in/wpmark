@@ -26,8 +26,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Lowest supported PHP and the newest the suite is verified on.
-        php: ['8.1', '8.4']
+        # Every supported PHP version: 8.2 is the lowest that still gets
+        # security fixes.
+        php: ['8.2', '8.3', '8.4', '8.5']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -55,19 +56,25 @@ jobs:
 
       - name: WordPress Coding Standards
         # The standards check does not depend on the PHP version, so run it once.
-        if: matrix.php == '8.1'
+        if: matrix.php == '8.2'
         run: composer lint -- --no-cache
 
   test:
-    name: Tests (PHP ${{ matrix.php }}, WordPress ${{ matrix.wp }})
+    name: Tests (PHP ${{ matrix.php }}, WordPress ${{ matrix.wp }}${{ matrix.elementor && ', Elementor' || '' }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        php: ['8.1', '8.4']
+        php: ['8.2', '8.3', '8.4', '8.5']
         # Our minimum WordPress and whatever is newest today.
         wp: ['6.9', 'latest']
+        elementor: ['']
+        include:
+          # Once more with the real Elementor plugin, for the page builder tests.
+          - php: '8.4'
+            wp: 'latest'
+            elementor: 'v4.0.8'
 
     services:
       mysql:
@@ -120,6 +127,12 @@ jobs:
         run: |
           minor="$(echo '${{ steps.wp.outputs.version }}' | cut -d. -f1,2)"
           composer update wp-phpunit/wp-phpunit --with "wp-phpunit/wp-phpunit:${minor}.*" --no-interaction --no-progress
+
+      - name: Download Elementor ${{ matrix.elementor }}
+        if: matrix.elementor != ''
+        run: |
+          git clone --quiet --depth 1 --branch '${{ matrix.elementor }}' --filter=blob:limit=2m https://github.com/elementor/elementor.git .wp/elementor
+          echo "WPMARK_TEST_ELEMENTOR_DIR=$PWD/.wp/elementor" >> "$GITHUB_ENV"
 
       - name: Run tests
         run: composer test

@@ -110,7 +110,7 @@ final class Registration {
 			'grant_types'                => array( 'authorization_code', 'refresh_token' ),
 			'response_types'             => array( 'code' ),
 			'token_endpoint_auth_method' => $method,
-			'scope'                      => OAuth::SCOPE,
+			'scope'                      => implode( ' ', OAuth::scopes() ),
 		);
 
 		if ( null !== $secret ) {

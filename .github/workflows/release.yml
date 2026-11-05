@@ -73,12 +73,12 @@ jobs:
 
           [Setup guide](https://github.com/atulsingh-co-in/wpmark/blob/main/docs/getting-started.md) · [Troubleshooting](https://github.com/atulsingh-co-in/wpmark/blob/main/docs/troubleshooting.md) · [Beta terms](https://github.com/atulsingh-co-in/wpmark/blob/main/docs/beta-terms.md)
 
-          Needs WordPress 6.9+, PHP 8.1+ and HTTPS. Feedback: join@atulsingh.co.in
+          Needs WordPress 6.9+, PHP 8.2+ and HTTPS. Feedback: join@atulsingh.co.in
           EOF
 
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
-          php-version: '8.1'
+          php-version: '8.2'
           coverage: none
           tools: composer
 

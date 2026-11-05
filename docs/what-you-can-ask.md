@@ -1,7 +1,8 @@
 # What you can ask
 
-WPMark gives your AI app a few read-only tools for your site. You never
-have to name them: ask in plain language and the AI picks what it needs.
+WPMark gives your AI app a few tools for your site: read-only, plus drafts
+if an administrator switches them on. You never have to name them: ask in
+plain language and the AI picks what it needs.
 Mentioning "WPMark" or "our website" helps it know where to look.
 
 ## Understand the site
@@ -55,6 +56,57 @@ it, WPMark still finds thin, stale, orphan and duplicate-title pages.
 - "Pick the five old posts most worth updating, and say what to add to each."
 - "Read our post about [topic] and suggest what's out of date."
 
+## Draft pages and posts
+
+Needs drafts switched on (see [step 7 of the setup guide](getting-started.md#7-optional-let-ai-draft-pages)).
+
+- "Draft a landing page for our product launch on 1 December. Use our usual
+  landing page layout and the demo request form."
+- "What page templates and saved Elementor templates do we have? Which suits
+  a webinar page?"
+- "Make a copy of our Delhi page for Bengaluru, with the new address."
+- "Change the draft's headline to something shorter and add three FAQs."
+- "Write a blog post draft about [topic] with a featured image from our media library."
+
+The AI starts from your own templates, colours and fonts, so the draft looks
+like the rest of your site. It shares a preview link; you publish it.
+
+## Write blog posts
+
+- "Write a blog post about choosing a CRM, for small business owners, to
+  rank for 'best CRM for small business'."
+- "Turn the three questions customers asked most this month into a blog post."
+
+In Claude, the **Write a blog post** playbook (under **+**) plans the post,
+checks you haven't written it already, links to your related pages, adds an
+FAQ and meta description, and saves it as a draft (or gives it to you in the
+chat if drafts are off).
+
+## Fix SEO titles, descriptions and links
+
+- "Give me an SEO fix list: suggested titles and meta descriptions for pages
+  that need them, as a table."
+- "Check our internal links. Which are broken, and which pages have no links
+  pointing to them?"
+
+The SEO fix list needs Rank Math. The AI writes the suggestions; you paste
+them into Rank Math. The link check looks only at links between your own
+pages.
+
+## Weekly marketing report
+
+- "Give me this week's marketing report."
+
+In Claude, the **Weekly marketing report** playbook covers leads and
+campaigns, content published and waiting, SEO and link problems, and AI
+visibility, with three priorities for next week.
+
+## Get found by AI search and assistants
+
+- "Can ChatGPT, Claude and Perplexity read our site? What's blocking them?"
+- "Are we blocking any AI search crawlers in robots.txt?"
+- "Which AI training crawlers do we allow, and what would blocking them change?"
+
 ## Ready-made playbooks
 
 In Claude, click **+** in the chat box to find WPMark's playbooks:
@@ -62,6 +114,10 @@ In Claude, click **+** in the chat box to find WPMark's playbooks:
 - **Weekly lead review:** what came in, what matters, what to follow up.
 - **Content plan from customer questions:** real questions turned into post ideas.
 - **SEO health check:** the gaps worth fixing first.
+- **Write a blog post:** plans and writes an SEO-ready post in your voice.
+- **Weekly marketing report:** one page for the team, with next week's priorities.
+- **Build a landing page:** asks about your goal and audience, picks a layout from
+  your site, and drafts the page (when drafts are on).
 
 ## Tips for better answers
 
@@ -73,7 +129,8 @@ In Claude, click **+** in the chat box to find WPMark's playbooks:
 
 ## What it won't do
 
-WPMark can't publish, edit, trash or delete anything, and it can't send
-emails or reply to leads. If you ask, the AI tells you what to do, and you do
-it in WordPress. It also can't see things outside your site, such as your
-Google Analytics, CRM or inbox.
+WPMark can't publish, change published pages, trash or delete anything, and
+it can't send emails or reply to leads. With drafts on, it creates and
+changes drafts only; you publish them. If you ask for anything else, the AI
+tells you what to do, and you do it in WordPress. It also can't see things
+outside your site, such as your Google Analytics, CRM or inbox.

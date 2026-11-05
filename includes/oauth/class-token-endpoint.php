@@ -164,12 +164,15 @@ final class Token_Endpoint {
 			return self::error( 'invalid_grant', 'This WordPress account is no longer allowed to use WPMark.' );
 		}
 
+		// The scopes the person granted at sign-in carry over to every refresh.
+		$scope = OAuth::clean_scope( (string) $row['scope'] );
+
 		$fields = array(
 			'client_id' => $client['client_id'],
 			'user_id'   => $user->ID,
 			'family'    => $row['family'],
 			'resource'  => $row['resource'],
-			'scope'     => OAuth::SCOPE,
+			'scope'     => $scope,
 		);
 
 		$response = new WP_REST_Response(
@@ -178,7 +181,7 @@ final class Token_Endpoint {
 				'token_type'    => 'Bearer',
 				'expires_in'    => OAuth::ACCESS_LIFETIME,
 				'refresh_token' => Store::issue( 'refresh', $fields, OAuth::REFRESH_LIFETIME ),
-				'scope'         => OAuth::SCOPE,
+				'scope'         => $scope,
 			),
 			200
 		);

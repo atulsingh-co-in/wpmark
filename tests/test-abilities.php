@@ -33,35 +33,39 @@ class Test_Abilities extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Every tool is marked read-only, non-destructive and safe to repeat.
+	 * Reading tools are marked read-only and safe to repeat; the two writing
+	 * tools are marked as writing. None is destructive.
 	 */
-	public function test_tools_are_read_only(): void {
+	public function test_tool_annotations(): void {
 		foreach ( Abilities::of_type( Ability::TOOL ) as $tool ) {
 			$annotations = wp_get_ability( $tool->name() )->get_meta()['annotations'];
 
-			$this->assertTrue( $annotations['readonly'], $tool->name() );
+			$this->assertSame( ! $tool->is_write(), $annotations['readonly'], $tool->name() );
 			$this->assertFalse( $annotations['destructive'], $tool->name() );
-			$this->assertTrue( $annotations['idempotent'], $tool->name() );
+			$this->assertSame( ! $tool->is_write(), $annotations['idempotent'], $tool->name() );
 		}
+
+		$writing = array_map( static fn( Ability $tool ): string => $tool->slug(), array_filter( Abilities::of_type( Ability::TOOL ), static fn( Ability $tool ): bool => $tool->is_write() ) );
+		$this->assertSame( array( 'create-draft', 'update-draft' ), array_values( $writing ) );
 	}
 
 	/**
-	 * Tool descriptions are a real brief: long enough, and say they are read-only.
+	 * Tool descriptions are a real brief: long enough, and say what they never do.
 	 */
 	public function test_tool_descriptions_are_briefs(): void {
 		foreach ( Abilities::of_type( Ability::TOOL ) as $tool ) {
 			$this->assertGreaterThan( 300, strlen( $tool->description() ), $tool->name() );
-			$this->assertStringContainsString( 'Read-only', $tool->description(), $tool->name() );
+			$this->assertStringContainsString( $tool->is_write() ? 'Never publishes' : 'Read-only', $tool->description(), $tool->name() );
 		}
 	}
 
 	/**
-	 * The seven tools, two resources and three prompts, each mapping to a marketing job.
+	 * The seventeen tools, two resources and six prompts, each mapping to a marketing job.
 	 */
 	public function test_catalogue(): void {
-		$this->assertCount( 7, Abilities::of_type( Ability::TOOL ) );
+		$this->assertCount( 17, Abilities::of_type( Ability::TOOL ) );
 		$this->assertCount( 2, Abilities::of_type( Ability::RESOURCE ) );
-		$this->assertCount( 3, Abilities::of_type( Ability::PROMPT ) );
+		$this->assertCount( 6, Abilities::of_type( Ability::PROMPT ) );
 	}
 
 	/**

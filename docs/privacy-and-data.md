@@ -9,7 +9,7 @@ and what to check under the main privacy laws.
 > change often. If you process personal data from visitors in several
 > regions, check your setup with a qualified adviser.
 
-Last updated: 25 September 2026.
+Last updated: 5 November 2026.
 
 ---
 
@@ -17,8 +17,10 @@ Last updated: 25 September 2026.
 
 - WPMark runs **entirely on your WordPress site.** There is no WPMark cloud
   service and no middleman server.
-- It **reads** your content, SEO settings and form entries, and **never
-  changes** anything.
+- It **reads** your content, SEO settings and form entries. It **changes
+  nothing** unless an administrator switches on drafts; then AI apps can
+  create draft pages and posts, and change only those drafts. It never
+  publishes, changes published pages, or deletes anything.
 - Data leaves your site **only** when a signed-in person on your team asks
   their AI app a question. It then goes **to that AI provider** (Anthropic,
   OpenAI, Google or another), under **your team's account** with them.
@@ -36,9 +38,39 @@ Last updated: 25 September 2026.
 | SEO settings (Rank Math) | SEO tools | No |
 | Form entries (Elementor Pro, WPForms, Contact Form 7 + Flamingo) | Lead tools, according to each role's setting | **Yes:** names, emails, phone numbers, addresses, and whatever visitors typed in messages |
 | Form entry page address and campaign tags (`utm_…`) | Lead tools | Usually not. Other query-string parts are removed. |
+| Theme styles, page templates, saved templates and the structure of pages | Design and drafting tools | No |
+| Media library images (title, alt text, address) | List media | Rarely |
+| Form names and IDs (not entries) | Design guide, for embedding forms in drafts | No |
+| Your own site's robots.txt, home page and sitemap, fetched from your site | AI visibility check | No |
 
 WPMark does **not** read user accounts, passwords, comments, orders,
 payment data, visitor IP addresses or analytics.
+
+## What WPMark writes, if you allow it
+
+Only with drafts switched on, for roles you choose, and with each person's
+agreement when they connect:
+
+- **Draft pages and posts,** built from what the AI sends. Scripts, custom
+  code and outside images are removed. Each draft records which app and
+  which person created it.
+- **Changes to those drafts,** while they are still drafts. WordPress keeps
+  earlier versions as revisions.
+
+WPMark never publishes, never changes published pages, never uploads files,
+and never trashes or deletes anything.
+
+## What WPMark publishes, if you allow it
+
+Both off by default:
+
+- **llms.txt:** a list of your published pages and latest posts, with short
+  descriptions, at `/llms.txt`. Only what is already public; pages hidden from
+  search engines and password-protected pages are left out.
+- **WebMCP form descriptions:** short descriptions added to your contact and
+  search forms, such as "Send a message to [your site]" and the field labels.
+  No script is added and nothing is sent anywhere. Visitors' AI agents may use
+  them to fill in a form; the visitor still sends it.
 
 ## What leaves your site, and when
 
@@ -63,7 +95,10 @@ enabling lead tools.
 
 | What | Why | How long |
 |---|---|---|
-| Settings (tools on/off, role access levels) | To apply your choices | Until you uninstall |
+| Settings (tools on/off, role access levels, drafts and agent-ready switches) | To apply your choices | Until you uninstall |
+| On pages made with the experimental custom design: their CSS and layout | To show the page as designed | As long as the page exists |
+| On each draft AI apps created: app name, WordPress user, page builder, created and changed times | So people can see who created what (**WPMark → Drafts by AI**) | As long as the draft exists. Uninstalling removes this record; the drafts stay. |
+| A count of each person's draft changes in the last hour | The 30-per-hour safety limit | One hour |
 | Connected apps: app name, WordPress user, when connected and last used | So people can see and disconnect their apps | Until disconnected, or 30 days after last use |
 | Sign-in tokens | So connected apps stay signed in | Stored only as one-way hashes (SHA-256). Access tokens last 1 hour, refresh tokens 30 days. Expired tokens are cleaned up daily. |
 
@@ -98,6 +133,9 @@ stay in user profiles until revoked.
   disconnect. Administrators see everyone's.
 - **Sign-in on or off:** under **WPMark → Access & privacy**. Switching it off
   signs every app out at once.
+- **Drafts on or off,** and which roles may create them, under **WPMark →
+  Access & privacy**. Each person must also tick the drafts box when they
+  connect; **Connected apps** shows which apps may create drafts.
 
 ## Before you switch on lead tools: a checklist
 
@@ -196,7 +234,12 @@ the specifics for your country.
 ## Security measures in WPMark
 
 - Every tool checks the person's WordPress permissions on every request.
-- WPMark has no tools that write, publish or delete.
+- WPMark has no tools that publish, change published content, trash or
+  delete. The only writing tools create and change drafts, are off by
+  default, and need both a role an administrator allowed and the person's
+  agreement at sign-in.
+- Drafts are cleaned the way WordPress cleans content from authors without
+  the "unfiltered HTML" permission: scripts and custom code are removed.
 - Sign-in follows OAuth 2.1 with PKCE. Tokens are stored hashed and rotated,
   and a reused token signs the whole connection out.
 - Sign-in only works over HTTPS (except local development sites).

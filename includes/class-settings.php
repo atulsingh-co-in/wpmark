@@ -66,9 +66,101 @@ final class Settings {
 	}
 
 	/**
+	 * Whether AI apps may create drafts at all. Off until an administrator
+	 * switches it on: WPMark only reads unless the site chooses otherwise.
+	 *
+	 * @return bool
+	 */
+	public static function drafts_enabled(): bool {
+		return ! empty( self::raw()['drafts'] );
+	}
+
+	/**
+	 * Switch draft writing on or off for the whole site.
+	 *
+	 * @param bool $enabled On or off.
+	 */
+	public static function save_drafts( bool $enabled ): void {
+		$settings           = self::raw();
+		$settings['drafts'] = $enabled;
+
+		update_option( self::OPTION, $settings, false );
+	}
+
+	/**
+	 * Whether AI apps may design pages in their own HTML and CSS
+	 * (experimental). Off by default; needs drafts on too.
+	 *
+	 * @return bool
+	 */
+	public static function custom_design_enabled(): bool {
+		return self::drafts_enabled() && ! empty( self::raw()['custom_design'] );
+	}
+
+	/**
+	 * Switch the experimental custom page design on or off.
+	 *
+	 * @param bool $enabled On or off.
+	 */
+	public static function save_custom_design( bool $enabled ): void {
+		$settings                  = self::raw();
+		$settings['custom_design'] = $enabled;
+
+		update_option( self::OPTION, $settings, false );
+	}
+
+	/**
+	 * Whether an add-on (WPMark Pro) lets AI apps publish on this site.
+	 * WPMark itself never publishes; this only keeps its wording honest.
+	 *
+	 * @return bool
+	 */
+	public static function publishing_allowed(): bool {
+		/**
+		 * Filters whether AI apps may publish through an add-on.
+		 *
+		 * @param bool $allowed Default false: WPMark itself never publishes.
+		 */
+		return (bool) apply_filters( 'wpmark_publishing_allowed', false );
+	}
+
+	/**
+	 * Whether WPMark publishes an llms.txt summary of the site. Off by default.
+	 *
+	 * @return bool
+	 */
+	public static function llms_txt_enabled(): bool {
+		return ! empty( self::raw()['llms_txt'] );
+	}
+
+	/**
+	 * Whether forms and search are described for AI agents in visitors'
+	 * browsers (WebMCP). Off by default: the standard is still experimental.
+	 *
+	 * @return bool
+	 */
+	public static function webmcp_enabled(): bool {
+		return ! empty( self::raw()['webmcp'] );
+	}
+
+	/**
+	 * Switch the agent-ready features on or off.
+	 *
+	 * @param bool $llms_txt Publish llms.txt.
+	 * @param bool $webmcp   Describe forms and search for AI agents.
+	 */
+	public static function save_agent_features( bool $llms_txt, bool $webmcp ): void {
+		$settings             = self::raw();
+		$settings['llms_txt'] = $llms_txt;
+		$settings['webmcp']   = $webmcp;
+
+		update_option( self::OPTION, $settings, false );
+	}
+
+	/**
 	 * Every role on the site with its WPMark settings, saved or default.
 	 *
-	 * @return array<string, array{name: string, can_write: bool, enabled: bool, leads: Lead_Access}>
+	 * @return array<string, array{name: string, can_write: bool, enabled: bool, leads: Lead_Access, drafts: bool}>
 	 */
 	public static function roles(): array {
 		$saved = self::raw()['roles'] ?? array();
@@ -86,6 +178,8 @@ final class Settings {
 				// A role that cannot write posts can never use WPMark, whatever was saved.
 				'enabled'   => $can_write && (bool) ( $choice['enabled'] ?? $defaults['enabled'] ),
 				'leads'     => Lead_Access::tryFrom( (string) ( $choice['leads'] ?? '' ) ) ?? $defaults['leads'],
+				// Whether the role may let AI apps create drafts (when drafts are on for the site).
+				'drafts'    => $can_write && (bool) ( $choice['drafts'] ?? $defaults['drafts'] ),
 			);
 		}
 
@@ -98,9 +192,11 @@ final class Settings {
 	 * Administrators see leads with masked contact details, editors see
 	 * leads without contact details, everyone else sees no leads. Full
 	 * contact details are always something an administrator switches on.
+	 * Roles that can edit other people's content (administrators and
+	 * editors) may create drafts once drafts are switched on for the site.
 	 *
 	 * @param array<string, bool> $caps The role's capabilities.
-	 * @return array{enabled: bool, leads: Lead_Access}
+	 * @return array{enabled: bool, leads: Lead_Access, drafts: bool}
 	 */
 	public static function role_defaults( array $caps ): array {
 		if ( ! empty( $caps['manage_options'] ) ) {
@@ -114,6 +210,7 @@ final class Settings {
 		return array(
 			'enabled' => ! empty( $caps['edit_posts'] ),
 			'leads'   => $leads,
+			'drafts'  => ! empty( $caps['edit_others_posts'] ),
 		);
 	}
 
@@ -132,6 +229,31 @@ final class Settings {
 
 		foreach ( self::user_role_slugs( $user ) as $slug ) {
 			if ( ! empty( $roles[ $slug ]['enabled'] ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Whether a person may let AI apps create drafts through WPMark.
+	 *
+	 * Needs drafts switched on for the site and a role allowed to. WordPress's
+	 * own capabilities still apply on top (for example, editing pages).
+	 *
+	 * @param WP_User $user The person.
+	 * @return bool
+	 */
+	public static function user_can_draft( WP_User $user ): bool {
+		if ( ! self::drafts_enabled() || ! self::user_can_connect( $user ) ) {
+			return false;
+		}
+
+		$roles = self::roles();
+
+		foreach ( self::user_role_slugs( $user ) as $slug ) {
+			if ( ! empty( $roles[ $slug ]['enabled'] ) && ! empty( $roles[ $slug ]['drafts'] ) ) {
 				return true;
 			}
 		}
@@ -177,7 +299,7 @@ final class Settings {
 	/**
 	 * Save role choices. Unknown roles and levels are ignored.
 	 *
-	 * @param array<string, array{enabled?: mixed, leads?: mixed}> $choices Role slug => choice.
+	 * @param array<string, array{enabled?: mixed, leads?: mixed, drafts?: mixed}> $choices Role slug => choice.
 	 */
 	public static function save_roles( array $choices ): void {
 		$settings = self::raw();
@@ -190,6 +312,7 @@ final class Settings {
 			$clean[ $slug ] = array(
 				'enabled' => $role['can_write'] && ! empty( $choice['enabled'] ),
 				'leads'   => $level->value,
+				'drafts'  => $role['can_write'] && ! empty( $choice['drafts'] ),
 			);
 		}
 

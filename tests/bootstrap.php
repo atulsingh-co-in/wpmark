@@ -26,6 +26,15 @@ require $wpmark_tests_dir . '/includes/functions.php';
 tests_add_filter(
 	'muplugins_loaded',
 	static function () use ( $wpmark_root ): void {
+		/*
+		 * Optional: a copy of Elementor, for the tests that need the real
+		 * plugin (tests/test-elementor-builder.php). They are skipped without it.
+		 */
+		$elementor = getenv( 'WPMARK_TEST_ELEMENTOR_DIR' );
+		if ( $elementor && is_readable( $elementor . '/elementor.php' ) ) {
+			require $elementor . '/elementor.php';
+		}
+
 		// WPMark loads and starts its bundled MCP Adapter itself, as on a real site.
 		require $wpmark_root . '/wpmark.php';
 	}
@@ -33,6 +42,7 @@ tests_add_filter(
 
 require $wpmark_tests_dir . '/includes/bootstrap.php';
 
+require __DIR__ . '/includes/class-add-on-tool.php';
 require __DIR__ . '/includes/class-fake-form-source.php';
 require __DIR__ . '/includes/class-form-source-contract-test-case.php';
 require __DIR__ . '/includes/trait-plugin-tables.php';

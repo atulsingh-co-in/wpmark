@@ -21,7 +21,7 @@
 
 	<!-- Fail on code that would break on the lowest PHP version we support. -->
 	<rule ref="PHPCompatibilityWP"/>
-	<config name="testVersion" value="8.1-"/>
+	<config name="testVersion" value="8.2-"/>
 
 	<!-- Warn when using WordPress functions newer than our minimum version. -->
 	<config name="minimum_wp_version" value="6.9"/>
